@@ -1,0 +1,69 @@
+#!/bin/bash
+
+bold=$(tput bold)
+red=$(tput setaf 1)
+green=$(tput setaf 2)
+reset=$(tput sgr0)
+
+if [ $# -lt 1 ]
+then
+    nmcli -c yes --fields type,uuid,name,state connection show | egrep '^\S*(TYPE|vpn)'
+    exit 0
+fi
+
+IFS=:
+
+command=$1
+if [ $# -gt 0 ]
+then	
+	shift
+fi
+pattern="$@"
+
+case "$command" in
+
+    up|on)
+	nmcli --fields type,uuid,name --terse connection show | egrep '^vpn' | egrep -i "$pattern" | \
+	    while read type uuid name
+	    do
+		echo "${bold}Activating VPN ${green}$name${reset} ..."
+		nmcli -c yes con up uuid "$uuid"
+		exit 3
+	    done && {
+		echo "No matching VPN connection."
+		exit 2
+	    } || { 
+		exit 0 
+	    }
+	;;
+    down|off)
+	nmcli --fields type,uuid,name --terse connection show --active | grep '^vpn' | egrep -i "$pattern" | \
+	    while read type uuid name
+	    do
+		echo "${bold}Deactivating VPN ${red}$name${reset} ..."
+		nmcli -c yes con down uuid "$uuid"
+	    done
+	;;
+    help|-h|--help|-?)
+
+    cat <<EOF 
+Usage: $0 [up|down] [connection-pattern]
+
+Manage VPN connections via NetworkManager.
+
+vpn                – Lists all available VPN connections
+vpn up [pattern]   - activates the first vpn connection pattern matches (or the first listed)
+vpn down [pattern] - deactivates all vpn connections [that match pattern]
+vpn pattern        - switches to the first matching vpn connection (i.e. all others are deactivated)
+
+Pattern is an extended regular expression that is matched against the whole line listed with "vpn" only,
+so it can match on name or uuid.
+EOF
+	exit 1
+	;;
+    *)
+	$0 down
+	$0 up "$command"
+	exit $?
+
+esac

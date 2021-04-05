@@ -1,0 +1,35 @@
+#!/bin/sh
+
+EPSPREFIX=keyboard-$$-
+EPSSUFFIX=.eps
+
+XKBPRINT="xkbprint -eps -lc $LANG -level2"
+
+cat > keyboard.tex <<EOF
+\documentclass{article}
+\usepackage[margin=1cm]{geometry}
+\usepackage{graphicx}
+\begin{document}
+\noindent\centering
+EOF
+
+lg=1
+    for ll in 1 2 3; do
+	IMGFILE=${EPSPREFIX}${lg}-${ll}
+	$XKBPRINT -lg $lg -ll $ll -o ${IMGFILE}${EPSSUFFIX} $DISPLAY
+	echo "\\includegraphics[width=0.9\\linewidth]{$IMGFILE}" >> keyboard.tex
+    done
+
+echo '\end{document}' >> keyboard.tex
+latex keyboard.tex > /dev/null
+dvips -o'|ps2pdf - keyboard.pdf' keyboard.dvi > /dev/null 2>&1
+rm ${EPSPREFIX}*${EPSSUFFIX}
+rm keyboard.{tex,aux,log,dvi}
+cat <<EOF
+Output written to keyboard.pdf.
+
+This file contains three keyboard images:
+(1) unshifted       and shifted
+(2) shifted         and AltGr unshifted
+(3) AltGr unshifted and AltGr shifted
+EOF

@@ -1,0 +1,38 @@
+#!/usr/bin/perl
+
+# This is a very very simplistic converter that takes a subset of MediaWiki
+# syntax and converts it to confluence syntax. Currently supported are
+# headings, simple text formatting, links, and code blocks; lists will work
+# as-is. I do not guarantee for anything, this will probably need manual
+# adjustments, but it should help with the tedious task of converting stuff
+# from our old wiki to the new one.
+
+use strict;
+
+while (<>) {
+    pre() if /^\s+\S+/;
+
+    # Headings
+    $_ = "h" . length($1) . ". $2\n"     if (/^(=+)(.*)\1$/) ;
+
+    # Text Formatting
+    s/'''(.*?)'''/*$1*/g;
+    s/''(.*?)''/_$1_/g;
+    s|<del>(.*?)</del>|-$1-|g;
+    s|<tt>(.*?)</tt>|{{$1}}|g;
+
+    # Links
+    s/\[\[(.*?)\]\]/[$1]/g;
+    s/\[(.*?)\s+(.*?)\]/[$2|$1]/g;
+
+    # Lists can be left as is, I guess
+
+    print;
+}
+
+# Preformatted text handling. 
+sub pre {
+    print "{code}\n";
+    print while (($_ = <>) and /^\s+/); 
+    print "{code}\n";
+}

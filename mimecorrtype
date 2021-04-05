@@ -1,0 +1,97 @@
+#!/usr/bin/perl
+#
+# File: mimetest.pl
+# Last Modified: 2008-03-25 15:03:41 CET
+# Author: Thorsten Vitt <thvitt@gmx.de>
+# Version: 0.03	*EXPERIMENTAL*
+#
+# This script may be used to correct E-mail messages with the unspecific
+# Content-Type: application/octet-stream.
+#
+# Problem: Several stupid MUAs do send mails with MIME attachments, but set
+# the content-type header to 'application/octet-stream' even if there is a
+# more specific MIME type. 
+#
+# Solution: This script :-) 
+#
+# It uses the MIME tools to parse a MIME message given from stdin and looks
+# for MIME entities with the content type application/octet-stream. If it
+# finds one, it uses File::LibMagic to try and examine this entity's _real_
+# type and fix the content-type header accordingly. 
+#
+# You could use this as a procmail filter when it's finished :-)
+#
+# Fix: Destroyed encrypted messages			2001-10-28	-tv
+# Switched to File::LibMagic				2008-03-25	-tv
+
+use strict; 
+use warnings;
+use MIME::Parser;
+use File::LibMagic;
+# use File::MMagic;
+
+
+my $magic;
+my $DEBUG;
+my $encrypted;
+
+my $corrcount = 0;
+
+# correctEntity($entity):
+# If $entity->is_multipart recursively correct all parts.
+# If $entity->mime-type is EVIL, try to fix it.
+# If $entity->mime-type is something 'encrypted', stop.
+sub correctEntity {
+	my $entity = shift;
+	$encrypted = 1 if $entity->mime_type =~ "encrypted";
+	if ($entity->mime_type =~ "application/octet-stream" and !$encrypted) {
+		print STDERR "Found evil entity..." if $DEBUG;
+		# Get access to the body as filehandle:
+		my $body = $entity->bodyhandle;
+
+		# Create File::MMagic object if it not already exists:
+		$magic = File::LibMagic->new() unless defined($magic);
+
+		my $newtype;
+		if (defined($body->path)) {
+		    $newtype = $magic->checktype_filename($body->path);
+		} else {
+		    $newtype = $magic->checktype_contents($body->as_string);
+		}
+	
+		# Set new type if useful:
+		if ($newtype !~ "application/octet-stream") {
+			my $head = $entity->head;
+			$head->mime_attr("content-type" => $newtype);
+			$head->add("X-Comment", "MIME type changed from application/octet-stream");
+			$corrcount++;
+		}
+		print STDERR "using type $newtype\n" if $DEBUG;
+	}
+
+	# Now handle multipart entities:
+	if ($entity->is_multipart) {
+		print STDERR "Multipart detected.\n" if $DEBUG;
+		foreach my $part ($entity->parts) {
+			correctEntity($part);
+		}
+	}
+}
+
+
+my $parser = new MIME::Parser;
+# $parser->output_under("/tmp");
+$parser->output_to_core(1);
+my $entity = $parser->parse(\*STDIN);
+
+correctEntity($entity);
+
+my $head = $entity->head;
+$head->add("X-Comment", "This message has been filtered through $0. \n\t$corrcount MIME entities had their type corrected from application/octet-stream.");
+$entity->print;
+
+exit 126 if $encrypted;
+exit 127 if $corrcount == 0;
+
+
+__END__

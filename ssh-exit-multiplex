@@ -1,0 +1,7 @@
+#!/bin/sh
+
+ls $HOME/.ssh/ \
+    | sed -ne 's/^control-\(.*\):\([0-9]*\)$/\1 \2/p' \
+    | while read target port; do
+        ssh -O exit -p $port "$target"
+      done

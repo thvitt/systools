@@ -1,0 +1,23 @@
+#!/bin/sh
+
+origpwd=`pwd`
+
+while [ \! -r pom.xml -a `pwd` != "/" ]
+do
+    cd ..
+done
+
+if [ -r pom.xml ]
+then
+    echo "`pwd`> mvn $@"
+    mvn "$@"
+    result=$?
+    cd "$origpwd"
+    exit $result
+else
+    echo "No pom.xml in $origpwd or any parent directory."
+    cd "$origpwd"
+    mvn "$@"
+    exit $?
+fi
+

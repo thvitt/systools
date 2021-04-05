@@ -1,0 +1,50 @@
+#!/bin/bash
+
+export SUBDIRECTORY_OK=1
+dashless=$(basename "$0" | sed -e 's/-/ /')
+OPTIONS_SPEC="$dashless [-p] [branch]
+
+$dashless looks through the issue's commit message and code for for referenced
+issues and opens the configured chili project info for them. Use 'git config
+chili.url' to configure the root url.
+--
+p,pull		also pull
+"
+
+. "$(git --exec-path)/git-sh-setup"
+
+pull=
+branch=$(git symbolic-ref --short HEAD)
+
+echo "$@"
+
+while [ $# -gt 0 ]; do
+  opt="$1"
+  shift
+  case "$opt" in
+    -p)	pull=1 ;;
+    --)	break ;;
+    *) die_with_status 129 "Unexpected option: $opt"
+  esac
+done
+
+if [ $# -gt 0 ]; then
+  branch="$1"
+fi
+
+require_work_tree_exists
+cd_to_toplevel
+
+export pull branch
+git checkout "$branch"
+if [ \! -z \"$pull\" ] ; then 
+  git pull ;
+fi;
+git submodule foreach "
+  git checkout \"$branch\";
+  if [ \! -z \"$pull\" ] ; then 
+    git pull ;
+  fi;
+  :
+"
+git status
