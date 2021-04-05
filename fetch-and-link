@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+
+__author__="Thorsten Vitt <tv@thorstenvitt.de>"
+__version__="0.1"
+
+import argparse
+import logging
+import sys
+from os.path import relpath
+from pathlib import Path
+from shutil import move
+from typing import Optional, Union
+
+logger = logging.getLogger(__name__)
+
+def fetch_and_link(src: Path, dst: Optional[Path] = None, *, absolute_symlink=False):
+    """
+    Moves src to dst and replaces src with a symlink to dst.
+    
+    This function is intended as a file move operation which leaves a "compatibility symlink" at src instead of removing src completely.
+
+    Args:
+        src: an existing file or directory that should be moved.
+        dst: either the target filename or the target directory, if missing, the current directory is assumed. If dst is an existing directory, src's file name will be kept.
+    """
+
+    src = Path(src)
+    if dst is None:
+        dst = Path()
+    else:
+        dst = Path(dst)
+    
+    if dst.is_dir():
+        dst /= src.name
+        
+    if absolute_symlink:
+        link_target = src.absolute()
+    else:
+        link_target = relpath(dst.resolve(), start=src.resolve().parent)
+    move(src, dst)
+    src.symlink_to(link_target)
+    logger.info('Moved %s to %s, symlink from %s to %s', src, dst, src, link_target)
+    assert src.resolve().samefile(dst)
+
+
+def reverse_link(link: Union[str, Path], *, absolute_symlink=False):
+    link = Path(link)
+    if not link.is_symlink():
+        logger.warning('%s is not a symbolic link: cannot reverse, skipping.', link)
+        return
+    link_target = (link.parent / link.readlink()).resolve()
+    link.unlink()
+    logger.debug('Removed link %s (to %s)', link, link_target)
+    fetch_and_link(link_target, link, absolute_symlink=absolute_symlink)
+
+
+def getargs(argv=sys.argv[1:]):
+    p = argparse.ArgumentParser(description="""Moves files and replaces them with a symlink to their new destination""")
+    p.add_argument('src', nargs='*', help="Source file(s) or directorie(s)")
+    p.add_argument('dst', help="""Destination file or directory. If missing and only one source given, assume current directory.
+                   If more than one src is given, this must be a directory. If ending with /, assume a directory.""")
+    p.add_argument('-p', '--parents', action='store_true', default=False, help="create parent directories if missing")
+    p.add_argument('-a', '--absolute-link', action='store_true', default=False, help="symlink will be absolute")
+    p.add_argument('-r', '--reverse', action='store_true', default=False, help="""
+                   Reverse operation. If present, each file is assumed to be a symlink. The symlink is resolved, then
+                   replaced with its target and the target is moved to the original symlink's place.
+                   """)
+    p.add_argument('-v', '--verbose', action='count', default=0, help="increase verbosity")
+    p.add_argument('-V', '--version', action='version', version=f'%(prog)s {__version__}')
+    options = p.parse_args(argv)
+
+    logging.getLogger().setLevel(logging.WARNING - 10*options.verbose)
+    
+    # only 1 argument => move arg to ., but arg will be in dst => fix it
+    if len(options.src) == 0:
+        options.src.append(options.dst)
+        options.dst = '.'
+    
+    return options
+
+
+def forward_magic(options):
+    assert not options.reverse
+    
+    dst = Path(options.dst)
+    srcs = map(Path, options.src)
+    
+    if options.parents and not dst.absolute().parent.is_directory():
+        dst.absolute().parent.mkdir(parents=True)
+    if options.dst[-1] == '/':
+        if dst.exists() and not dst.is_dir():
+            logger.error('Destination %s exists but is not a directory', dst)
+            sys.exit(-1)
+        else:
+            dst.mkdir(exist_ok=True)
+            
+    for src in srcs:
+        fetch_and_link(src, dst, absolute_symlink=options.absolute_link)
+        
+
+def reverse_magic(options):
+    assert options.reverse
+    if options.dst and options.dst != '.':
+        options.src.append(options.dst)
+
+    for src in options.src:
+        link = Path(src)
+        reverse_link(link, absolute_symlink=options.absolute_link)
+        
+    
+
+
+if __name__ == '__main__':
+    logging.basicConfig()
+    options = getargs()
+    if options.reverse:
+        reverse_magic(options)
+    else:
+        forward_magic(options)
