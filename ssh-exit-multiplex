@@ -1,7 +1,13 @@
-#!/bin/sh
+#!/bin/bash
+
+if [[ "$1" = "-w" ]]; then
+    sleep 5
+fi
 
 ls $HOME/.ssh/ \
     | sed -ne 's/^control-\(.*\):\([0-9]*\)$/\1 \2/p' \
     | while read target port; do
-        ssh -O exit -p $port "$target"
+        echo "Asking connection to ${target} port ${port} to exit ..."
+        ssh -O exit -p $port "$target" &
       done
+wait
