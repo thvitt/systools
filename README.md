@@ -4,6 +4,7 @@ This repository is intended for small scripts and utilities that do not require 
 
 | Script             | Description                                            | More             |
 |--------------------|--------------------------------------------------------|------------------|
+| choose             | Randomly select from input lines                       |                  |
 | fetch-and-link     | Move file and replace with symlink                     | `--help`         |
 | git-cor            | Synchronously checkout submodules                      | `git cor --help` |
 | keyboard-overview  | Current keyboard map                                   |                  |
