@@ -20,6 +20,13 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Monkey-patch older Path implementations
+if not hasattr(Path, 'readlink'):
+    from os import readlink
+    def _readlink(path):
+        return Path(readlink(fspath(path)))
+    Path.readlink = _readlink
+
 
 class CannotLinkError(IOError): 
     ...
