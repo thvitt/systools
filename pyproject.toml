@@ -13,6 +13,9 @@ dependencies = [
     "pyudev>=0.24.1",
     "systemd-python>=235",
     "typer>=0.9.0",
+    "readchar>=4.0.5",
+    "pydbus>=0.6.0",
+    "tqdm>=4.66.1",
 ]
 requires-python = ">=3.11"
 readme = "README.md"
@@ -24,6 +27,7 @@ choose = "tv_systools.choose:main"
 fetch-and-link = "tv_systools.fetch_and_link:main"
 wacom-config = "tv_systools.wacom_config:main"
 glyphinfo = "tv_systools.glyphinfo:app"
+debug-gnome-extensions = "tv_systools.debug_gnome_extensions:main"
 
 [tool.pdm]
 distribution = true
