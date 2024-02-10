@@ -7,6 +7,7 @@ dependencies = [
     "rich>=13.7.0",
     "python-apt @ git+https://salsa.debian.org/apt-team/python-apt.git",
     "python-dateutil>=2.8.2",
+    "ruyaml>=0.91.0",
 ]
 requires-python = ">=3.11"
 readme = "README.md"
@@ -15,6 +16,7 @@ license = { text = "MIT" }
 [project.scripts]
 apt-describe-update = "tv_systools.apt_describe_update:main"
 choose = "tv_systools.choose:main"
+fetch-and-link = "tv_systools.fetch_and_link:main"
 
 [tool.pdm]
 distribution = true
