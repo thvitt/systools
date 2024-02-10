@@ -3,10 +3,17 @@ name = "tv-systools"
 version = "0.2.0"
 description = "Collection of system-related small tools"
 authors = [{ name = "Thorsten Vitt", email = "thorsten.vitt@uni-wuerzburg.de" }]
-dependencies = []
+dependencies = [
+    "rich>=13.7.0",
+    "python-apt @ git+https://salsa.debian.org/apt-team/python-apt.git",
+    "python-dateutil>=2.8.2",
+]
 requires-python = ">=3.11"
 readme = "README.md"
 license = { text = "MIT" }
+
+[project.scripts]
+apt-describe-update = "tv_systools.apt_describe_update:main"
 
 [tool.pdm]
 distribution = true
