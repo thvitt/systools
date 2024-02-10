@@ -14,6 +14,7 @@ license = { text = "MIT" }
 
 [project.scripts]
 apt-describe-update = "tv_systools.apt_describe_update:main"
+choose = "tv_systools.choose:main"
 
 [tool.pdm]
 distribution = true
