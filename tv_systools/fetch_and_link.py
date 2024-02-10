@@ -13,7 +13,7 @@ from shutil import move
 from typing import Optional, Union, Tuple
 
 try:
-    from ruamel.yaml import YAML
+    from ruyaml import YAML
     yaml = YAML()
 except ImportError:
     yaml = None
@@ -212,12 +212,14 @@ def reverse_magic(options):
             logger.error(str(e))
         
     
-
-
-if __name__ == '__main__':
+def main():
     logging.basicConfig(format='%(levelname)s: %(message)s')
     options = getargs()
     if options.reverse:
         reverse_magic(options)
     else:
         forward_magic(options)
+
+
+if __name__ == "__main__":
+    main()

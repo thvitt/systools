@@ -10,8 +10,8 @@ from typing import Optional, List, Union, Iterable, Tuple
 from os.path import commonprefix
 import re
 
-from rich.console import Console, ConsoleOptions, RenderResult, Measurement
-from rich.pretty import pprint
+from rich.console import Console, ConsoleOptions, RenderResult
+from rich.measure import Measurement
 from rich.text import Text
 
 _cache = apt.Cache()
@@ -361,7 +361,7 @@ def interactive_mode(records, auto_installed=False, sort=True):
             show_log(records)
 
 
-if __name__ == '__main__':
+def main():
     options = getargparser().parse_args()
     log = read_log()
     if options.interactive:
@@ -370,3 +370,7 @@ if __name__ == '__main__':
         show_log(log)
     else:
         show_records(log, options.records, show_auto=options.auto, sort=not options.unsorted)
+
+
+if __name__ == '__main__':
+    main()

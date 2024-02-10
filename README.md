@@ -1,19 +1,27 @@
 ## Small System Tools
 
-This repository is intended for small scripts and utilities that do not require installation except for just copying them into `$PATH`. Scripts marked with † are not in active use and maintenance. 
+This repository is intended for small scripts and utilities that do not fit anywhere else. Scripts marked with † are not in active use and maintenance. 
 
-| Script             | Description                                            | More             |
-|--------------------|--------------------------------------------------------|------------------|
-| choose             | Randomly select from input lines                       |                  |
-| fetch-and-link     | Move file and replace with symlink                     | `--help`         |
-| git-cor            | Synchronously checkout submodules                      | `git cor --help` |
-| keyboard-overview  | Current keyboard map                                   |                  |
-| pmvn               | Run Maven in the nearest ancestor directory with a POM |                  |
-| ssh-exit-multiplex | Exit multiplexed ssh connections                       | (below)          |
-| vpn                | Wrapper for `nm-cli` to switch VPN connections         | `--help`         |
-| wacom-config       | Auto-configure Wacom screen                            |                  |
-| mimecorrtype       | Autodetects and fixes e-mail attachment MIME types     | †                |
-| mw2confluence      | MediaWiki to Confluence wiki ASCII syntax              | †                |
+Python scripts reside in python submodules in `tv_systools`. They can usually also be used by copying the python script file and making it executable if you have their respective dependencies installed globally. All other scripts live in `scripts` and can just be copied to some bin directory. 
+
+You can use pipx to install everything including python dependencies.
+
+| Script                 | Description                                              | More               | Kind   |
+| --------------------   | -------------------------------------------------------- | ------------------ | ----   |
+| apt-describe-update    | Show info about last apt updates                         | `--help`           | Python |
+| choice                 | Randomly select from input lines                         |                    | Python |
+| debug-gnome-extensions | find a gnome extension that does sth bad                 |                    | Python |
+| fetch-and-link         | Move file and replace with symlink                       | `--help`           | Python |
+| glyphinfo              | Show info abut the glyphs of a font                      | `--help`           | Python |
+| git-cor                | Synchronously checkout submodules                        | `git cor --help`   | Shell  |
+| hcopy, hpaste          | Copy/Paste markdown as html                              |                    | Shell  |
+| keyboard-overview      | Current keyboard map                                     |                    | Shell  |
+| pmvn                   | Run Maven in the nearest ancestor directory with a POM   |                    | Shell  |
+| ssh-exit-multiplex     | Exit multiplexed ssh connections                         | (below)            | Shell  |
+| vpn                    | Wrapper for `nm-cli` to switch VPN connections           | `--help`           | Shell  |
+| wacom-config           | Auto-configure Wacom screen                              |                    | Python |
+| mimecorrtype           | Autodetects and fixes e-mail attachment MIME types       | †                  | Perl   |
+| mw2confluence          | MediaWiki to Confluence wiki ASCII syntax                | †                  | Perl   |
 
 
 
