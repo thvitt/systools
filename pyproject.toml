@@ -8,6 +8,10 @@ dependencies = [
     "python-apt @ git+https://salsa.debian.org/apt-team/python-apt.git",
     "python-dateutil>=2.8.2",
     "ruyaml>=0.91.0",
+    "PyGObject>=3.46.0",
+    "notify2>=0.3.1",
+    "pyudev>=0.24.1",
+    "systemd-python>=235",
 ]
 requires-python = ">=3.11"
 readme = "README.md"
@@ -17,6 +21,7 @@ license = { text = "MIT" }
 apt-describe-update = "tv_systools.apt_describe_update:main"
 choose = "tv_systools.choose:main"
 fetch-and-link = "tv_systools.fetch_and_link:main"
+wacom-config = "tv_systools.wacom_config:main"
 
 [tool.pdm]
 distribution = true
