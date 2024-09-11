@@ -16,6 +16,8 @@ dependencies = [
   "readchar>=4.0.5",
   "pydbus>=0.6.0",
   "tqdm>=4.66.1",
+  "questionary>=2.0.1",
+  "platformdirs>=4.2.2",
 ]
 requires-python = ">=3.11"
 readme = "README.md"
@@ -28,6 +30,10 @@ fetch-and-link = "tv_systools.fetch_and_link:main"
 wacom-config = "tv_systools.wacom_config:main"
 glyphinfo = "tv_systools.glyphinfo:app"
 debug-gnome-extensions = "tv_systools.debug_gnome_extensions:main"
+nco = "tv_systools.nco:main"
+j = "tv_systools.logseq_j:main"
+clean-sync-conflicts = "tv_systools.clean_sync_conflicts:app"
+public-link = "tv_systools.public_link:app"
 
 [tool.pdm]
 distribution = true
