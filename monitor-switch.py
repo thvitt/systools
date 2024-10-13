@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 
 from enum import Enum
-from os import read
 from pathlib import Path
 from subprocess import run
 from dataclasses import dataclass
 import re
-from sys import prefix
-from threading import current_thread
+import sys
 from typing import Self
-import xdg
+from xdg import BaseDirectory
 from copy import copy
 from time import sleep
+import shutil
 
 output_re = re.compile(
     r"^(?P<output>\S+) (?P<connected>connected|disconnected) (?P<primary>primary *)?(?:(?P<width>\d+)x(?P<height>\d+)\+(?P<x>\d+)\+(?P<y>\d+))?.*?(?:(?P<physx>\d+)mm x (?P<physy>\d+)mm)?$"
@@ -243,9 +242,55 @@ class ManualOption:
         return f'🔧 \t<b>{self.label}</b>\t<span fgcolor="gray">Manual configuration</span>'
 
 
+class Notification:
+    id: str | None = None
+
+    def __init__(
+        self,
+        summary: str,
+        body: str = "",
+        progress: int | None = None,
+        icon: str = "video-display-symbolic",
+    ) -> None:
+        self.summary = summary
+        self.body = body
+        self.icon = icon
+        self.progress = progress
+        self.show()
+
+    def show(self, **kwargs):
+
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+
+        options = [
+            shutil.which("notify-send"),
+            "--icon",
+            self.icon,
+            "--category",
+            "device",
+            "--transient",
+        ]
+        if self.progress is not None:
+            options.append(f"--hint=int:value:{self.progress}")
+        if self.id is None:
+            options.append("--print-id")
+        else:
+            options.append(f"--replace-id={self.id}")
+        options.extend([self.summary, self.body])
+        proc = run(options, capture_output=self.id is None, text=True)
+        if self.id is None:
+            self.id = proc.stdout.strip()
+
+
 class ResetOption:
+
     def activate(self):
-        run(["pkill", "picom"])
+        notification = Notification(
+            "Resetting display configuration", "Stopping picom", progress=5
+        )
+        run(["systemctl", "--user", "stop", "picom"])
         relevant_outputs = [
             output
             for output in xrandr_config()
@@ -257,16 +302,29 @@ class ResetOption:
             )
             run(["rofi", "-e", message])
         else:
+            notification.show(
+                body=f"Turning off outputs {', '.join(map(str, relevant_outputs))}",
+                progress=10,
+            )
             off_cmd = ["xrandr"]
             for output in relevant_outputs:
                 off_cmd.extend(["--output", output.name, "--off"])
             run(off_cmd)
             sleep(5)
-            XRandrOption.suggested()[0].activate()
+            xrandr_option = XRandrOption.suggested()[0]
+            notification.show(
+                body=f"Applying new configuration {xrandr_option.label}", progress=40
+            )
+            xrandr_option.activate()
             sleep(5)
+            notification.show(body="Reloading qtile configuration", progress=60)
             run(["qtile", "cmd-obj", "-o", "root", "-f", "reload_config"])
-        run(["picom", "-b"])
+
+        notification.show(body="Restarting picom", progress=80)
+        run(["systemctl", "--user", "start", "picom"])
+        notification.show(body="Reconfiguring qtile", progress=90)
         run(["qtile", "cmd-obj", "-o", "root", "-f", "reconfigure_screens"])
+        notification.show(body="The screens should be fine now.", progress=100)
 
     def to_pango(self):
         return '💊 \t<b><span fgcolor="red">reset display setup</span></b>\t<span fgcolor="gray">Try to re-initialize the configuration</span>'
@@ -297,7 +355,7 @@ class AutorandrOption:
 
     @staticmethod
     def read_config(name: str):
-        filename = xdg.BaseDirectory.load_first_config(f"autorandr/{name}/config")
+        filename = BaseDirectory.load_first_config(f"autorandr/{name}/config")
         if filename:
             return Path(filename).read_text()
         else:
@@ -401,6 +459,11 @@ def main():
         - extern klon rechts
         - extern klon links
     """
+
+    if len(sys.argv) > 1 and sys.argv[1] == "--reset":
+        ResetOption().activate()
+        return
+
     options = [
         *AutorandrOption.detected(),
         *XRandrOption.suggested(),
@@ -410,7 +473,7 @@ def main():
     ]
 
     formatted_options = "\n".join(option.to_pango() for option in options)
-    print(formatted_options)
+    # print(formatted_options)
     rofi_proc = run(
         [
             "rofi",
