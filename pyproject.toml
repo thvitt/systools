@@ -41,6 +41,12 @@ distribution = true
 [tool.pdm.build.wheel-data]
 scripts = ["scripts/*"]
 
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "ipykernel>=6.29.5",
+    "jupyter-console>=6.6.3",
+]
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
