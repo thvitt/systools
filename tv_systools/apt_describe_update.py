@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+from __future__ import annotations
 import argparse
 
 import apt
@@ -13,6 +14,7 @@ import re
 from rich.console import Console, ConsoleOptions, RenderResult
 from rich.measure import Measurement
 from rich.text import Text
+from rich.prompt import Confirm
 
 _cache = apt.Cache()
 
@@ -21,57 +23,59 @@ console = Console()
 
 class LogRecord:
     operations = {
-        'install': '+',
-        'remove': '-',
-        'upgrade': '↑',
-        'downgrade': '↓',
-        'purge': '✘',
-        'reinstall': '↺'
+        "install": "+",
+        "remove": "-",
+        "upgrade": "↑",
+        "downgrade": "↓",
+        "purge": "✘",
+        "reinstall": "↺",
     }
 
-    commandline: str = ''
-    requested_by: str = ''
+    commandline: str = ""
+    requested_by: str = ""
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     error: Optional[str] = None
-    install: List[apt.Package] = []
-    reinstall: List[apt.Package] = []
-    upgrade: List[apt.Package] = []
-    downgrade: List[apt.Package] = []
-    remove: List[apt.Package] = []
-    purge: List[apt.Package] = []
+    install: List[PackageDescriptor] = []
+    reinstall: List[PackageDescriptor] = []
+    upgrade: List[PackageDescriptor] = []
+    downgrade: List[PackageDescriptor] = []
+    remove: List[PackageDescriptor] = []
+    purge: List[PackageDescriptor] = []
 
     def __init__(self, logstring: str):
         self.raw = logstring
-        lines = logstring.split('\n')
+        lines = logstring.split("\n")
         ops = []
         for line in lines:
-            if ': ' in line:
-                key_, value = line.split(': ')
-                key = key_.strip().lower().replace('-', '_')
-                if key.endswith('date'):
+            if ": " in line:
+                key_, value = line.split(": ")
+                key = key_.strip().lower().replace("-", "_")
+                if key.endswith("date"):
                     setattr(self, key, parse_date(value))
                 elif key in self.operations:
                     setattr(self, key, self._parse_pkg_list(value, key))
                     ops.append(key)
                 else:
                     setattr(self, key, value)
-                    if key not in {'requested_by', 'error', 'commandline'}:
-                        console.log(f'Unknown entry: [italic]{key}: {value}')
+                    if key not in {"requested_by", "error", "commandline"}:
+                        console.log(f"Unknown entry: [italic]{key}: {value}")
         self.ops = ops
 
-    def _parse_pkg_list(self, raw: str, op: str) -> List[apt.Package]:
+    def _parse_pkg_list(self, raw: str, op: str) -> List[PackageDescriptor]:
         matches = re.finditer(r"(\S+)\s*\((\S+)?(?:, (\S+))?\)(?:,\s+)?", raw)
         result = [PackageDescriptor(match, op) for match in matches]
         if not result:
-            console.print(f'Parsing package list {op}: {raw} ⇒ 0 results')
+            console.print(f"Parsing package list {op}: {raw} ⇒ 0 results")
         return result
 
     def __getitem__(self, item):
         if item in self.operations:
             return getattr(self, item)
         else:
-            raise KeyError(f'{item} is not one of the operations: {", ".join(self.operations)}')
+            raise KeyError(
+                f'{item} is not one of the operations: {", ".join(self.operations)}'
+            )
 
     def __iter__(self):
         for key in self.operations:
@@ -79,14 +83,14 @@ class LogRecord:
 
     def __str__(self):
         opstrs = [self.operations[op] + str(len(self[op])) for op in self.ops]
-        result = f'{self.start_date:%Y-%m-%d %H:%M}: '
+        result = f"{self.start_date:%Y-%m-%d %H:%M}: "
         if self.error:
-            result += self.error + ' '
+            result += self.error + " "
         result += f'{" ".join(opstrs)}, {self.commandline} by {self.requested_by}'
         return result
 
     def __repr__(self):
-        return f'<{self.__class__.__name__}: {self}>'
+        return f"<{self.__class__.__name__}: {self}>"
 
 
 class Version:
@@ -112,7 +116,7 @@ class Version:
             '2.3‣2.4'
         """
         if self.old_version:
-            return f'{self.version}‣{self.old_version}'
+            return f"{self.version}‣{self.old_version}"
         else:
             return str(self.version)
 
@@ -129,17 +133,26 @@ class Version:
             ('42.0', '', '')
         """
         if self.old_version:
-            old_parts = re.split(r'([\W\D]+)', self.old_version)
-            new_parts = re.split(r'([\W\D]+)', self.version)
+            old_parts = re.split(r"([\W\D]+)", self.old_version)
+            new_parts = re.split(r"([\W\D]+)", self.version)
             common_parts = commonprefix([old_parts, new_parts])
-            return tuple(''.join(s) for s in [common_parts, old_parts[len(common_parts):], new_parts[len(common_parts):]])
+            return tuple(
+                "".join(s)
+                for s in [
+                    common_parts,
+                    old_parts[len(common_parts) :],
+                    new_parts[len(common_parts) :],
+                ]
+            )
         else:
-            return self.version, '', ''
+            return self.version, "", ""
 
-    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> RenderResult:
         if self.old_version:
-            common,  old, new = self.split_version()
-            yield f'{common}[red strike]{old}[/red strike]‣[green underline]{new}[/green underline]'
+            common, old, new = self.split_version()
+            yield f"{common}[red strike]{old}[/red strike]‣[green underline]{new}[/green underline]"
         else:
             yield str(self.version)
 
@@ -159,16 +172,23 @@ class Version:
         return Measurement(self.length, self.length)
 
     def __repr__(self):
-        result = f'{self.__class__.__name__}({self.version!r}'
+        result = f"{self.__class__.__name__}({self.version!r}"
         if self.old_version:
-            result += f', old_version={self.old_version!r})'
+            result += f", old_version={self.old_version!r})"
         else:
-            result += ')'
+            result += ")"
         return result
 
 
 class PackageDescriptor:
     auto_installed: bool = False
+    name: str
+    shortname: str
+    operation: str
+    version: Version
+    summary: str
+    pkg: apt.Package
+    ver: apt.Version
 
     def __init__(self, match, operation=None):
         self.name = match.group(1)
@@ -180,7 +200,7 @@ class PackageDescriptor:
             old_version = None
             version = match.group(2)
 
-        if version == 'automatic':
+        if version == "automatic":
             old_version, version = None, old_version
             self.auto_installed = True
 
@@ -201,40 +221,45 @@ class PackageDescriptor:
             self.summary = self.ver.summary
         except KeyError:
             self.shortname = self.name
-            self.summary = '[package not found]'
+            self.summary = "[package not found]"
 
     @property
     def display_version(self):
-        if hasattr(self, 'old_version'):
-            return f'{self.old_version}‣{self.version}'
+        if hasattr(self, "old_version"):
+            return f"{self.old_version}‣{self.version}"
         else:
             return self.version
 
 
-def read_log(file='/var/log/apt/history.log'):
-    return [LogRecord(text) for text in Path(file).read_text().split('\n\n')]
+def read_log(file="/var/log/apt/history.log") -> list[LogRecord]:
+    return [LogRecord(text) for text in Path(file).read_text().split("\n\n")]
 
 
-def show_record(rec: LogRecord, show_auto=False, sort=False, prefix=''):
-    table = rich.table.Table(title=f'{prefix}{rec}', box=rich.box.SIMPLE)
-    table.add_column('')
-    table.add_column('Package')
-    table.add_column('Version')
-    table.add_column('Summary')
+def show_record(rec: LogRecord, show_auto=False, sort=False, prefix=""):
+    table = rich.table.Table(title=f"{prefix}{rec}", box=rich.box.SIMPLE)
+    table.add_column("")
+    table.add_column("Package")
+    table.add_column("Version")
+    table.add_column("Summary")
 
     items = sorted(rec, key=lambda item: item.shortname) if sort else rec
 
     for item in items:
         if not item.auto_installed or show_auto:
-            table.add_row(LogRecord.operations[item.operation], item.shortname, item.display_version, item.summary,
-                          style='dim' if item.auto_installed else None)
+            table.add_row(
+                LogRecord.operations[item.operation],
+                item.shortname,
+                item.display_version,
+                item.summary,
+                style="dim" if item.auto_installed else None,
+            )
     console.print(table)
 
 
 def show_records(log: List[LogRecord], specs: List[str], **kwargs) -> int:
     indexes = get_indexes(specs, len(log))
     for index in indexes:
-        show_record(log[index], prefix=f'{index}: ', **kwargs)
+        show_record(log[index], prefix=f"{index}: ", **kwargs)
     return index
 
 
@@ -250,7 +275,7 @@ def parse_slice(source: str) -> Union[int, slice]:
         >>> parse_slice('::-1')
         slice(None, None, -1)
     """
-    parts = source.split(':')
+    parts = source.split(":")
     if len(parts) == 1:
         return int(parts[0])
     else:
@@ -289,73 +314,112 @@ def get_indexes(specs: Iterable[Union[str, int, slice]], length: int) -> list[in
 
 def getargparser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    p.add_argument('records', nargs='*', default=['-1'])
-    p.add_argument('-i', '--interactive', help='Interactive mode', action='store_true', default=False)
-    p.add_argument('-a', '--auto', help='Include automatically installed items', action='store_true', default=False)
-    p.add_argument('-u', '--unsorted', help='Show packages in the same order as in the log file for each operation',
-                   action='store_true', default=False)
-    p.add_argument('-l', '--list', help='List records (i.e. apt calls) instead of the packages of a single apt call',
-                   action='store_true', default=False)
+    p.add_argument("records", nargs="*", default=["-1"])
+    p.add_argument(
+        "-i",
+        "--interactive",
+        help="Interactive mode",
+        action="store_true",
+        default=False,
+    )
+    p.add_argument(
+        "-a",
+        "--auto",
+        help="Include automatically installed items",
+        action="store_true",
+        default=False,
+    )
+    p.add_argument(
+        "-u",
+        "--unsorted",
+        help="Show packages in the same order as in the log file for each operation",
+        action="store_true",
+        default=False,
+    )
+    p.add_argument(
+        "-l",
+        "--list",
+        help="List records (i.e. apt calls) instead of the packages of a single apt call",
+        action="store_true",
+        default=False,
+    )
     return p
 
 
 def show_log(records):
     for index, record in enumerate(records):
-        console.print(f'{index:2d}. {record}')
+        console.print(f"{index:2d}. {record}")
 
 
 def _option(name: str, flag: bool = False, shortcut_pos: int = 0):
     t = Text(name)
     if flag:
-        t.stylize('bold')
+        t.stylize("bold")
     if shortcut_pos is not None:
-        t.stylize('underline', shortcut_pos, shortcut_pos + 1)
+        t.stylize("underline", shortcut_pos, shortcut_pos + 1)
     return t
 
 
 def interactive_mode(records, auto_installed=False, sort=True):
     show_log(records)
-    default = '-1'
+    default = "-1"
     quit = False
     browse_reverse = False
     while not quit:
         show_list = False
-        raw_input = console.input(Text('Record(s) | ')
-                                  + _option('auto', auto_installed) + ' | '
-                                  + _option('sort', sort) + ' | '
-                                  + _option('quit')
-                                  + Text(f'[{default}] ❯ ', style='green'))
+        raw_input = console.input(
+            Text("Record(s) | ")
+            + _option("auto", auto_installed)
+            + " | "
+            + _option("sort", sort)
+            + " | "
+            + _option("quit")
+            + Text(f"[{default}] ❯ ", style="green")
+        )
         answers = raw_input.lower().split() if raw_input else [default]
         specs = []
         for answer in answers:
-            if answer == 'a':
+            print("Analyzing answer: ", answer)
+            if answer == "a":
                 auto_installed = not auto_installed
-            elif answer == 's':
+            elif answer == "s":
                 sort = not sort
-            elif answer == 'q':
+            elif answer == "q":
                 quit = True
-            elif answer == 'l':
+            elif answer == "l":
                 show_list = True
-            elif re.match('(-?\d+)?(:(-?\d+)?)*', answer):
+            elif re.match("^(-?\d+)?(:(-?\d+)?)*$", answer):
                 specs.append(answer)
+            elif re.match("^u-?\d+$", answer):
+                show_records(records, [answer[1:]])
+                if Confirm.ask("Undo this operation?"):
+                    rec = records[get_indexes([answer[1:]], len(records))[0]]
+                    undo(rec)
+                    return
+                else:
+                    specs.append(answer[1:])
             else:
-                console.error(f'{answer} not understood')
+                console.error(f"{answer} not understood")
 
-        if specs == ['-1']:
+        print(specs)
+
+        if specs == ["-1"]:
             browse_reverse = True
 
         if not specs:
             specs = [default]
 
         with console.pager(styles=True):
-            last_record = show_records(records, specs, show_auto=auto_installed, sort=sort)
+            last_record = show_records(
+                records, specs, show_auto=auto_installed, sort=sort
+            )
 
             if browse_reverse and last_record > 0:
                 default = str(last_record - 1)
             elif last_record < len(records) - 1:
                 default = str(last_record + 1)
             else:
-                default = 'q'
+                default = "q"
 
         if show_list:
             show_log(records)
@@ -369,8 +433,50 @@ def main():
     elif options.list:
         show_log(log)
     else:
-        show_records(log, options.records, show_auto=options.auto, sort=not options.unsorted)
+        show_records(
+            log, options.records, show_auto=options.auto, sort=not options.unsorted
+        )
 
 
-if __name__ == '__main__':
+def undo(rec: LogRecord):
+    with _cache.actiongroup():
+        for installed in rec.install:
+            installed.pkg.mark_delete(auto_fix=False)
+        for removed in rec.remove + rec.purge:
+            if not hasattr(removed, "pkg"):
+                providers = _cache.get_providing_packages(removed.name)
+                print(
+                    f"Virtual package {removed.name} is provided by {len(providers)} packages: {', '.join(pkg.name for pkg in providers)}"
+                )
+                for candidate in providers:
+                    if Confirm.ask(f"Install {candidate.name}?"):
+                        candidate.mark_install(auto_fix=False)
+            else:
+                if removed.version.version:
+                    if removed.version.version in removed.pkg.versions:
+                        removed.pkg.candidate = removed.pkg.versions[
+                            removed.version.version
+                        ]
+                    else:
+                        print(
+                            f"{removed.name}: Removed version {removed.version.version} not available, only {removed.pkg.versions}, leaving candidate {removed.pkg.candidate}"
+                        )
+                removed.pkg.mark_install(auto_fix=False)
+        for changed in rec.upgrade + rec.downgrade:
+            try:
+                changed.pkg.candidate = changed.pkg.versions[
+                    changed.version.old_version
+                ]
+            except KeyError as e:
+                print(
+                    f"{changed.name}: {changed.version.old_version} not available, only {changed.pkg.versions}, leaving candidate {changed.pkg.candidate}"
+                )
+            changed.pkg.mark_upgrade()
+        resolver = apt.ProblemResolver(_cache)
+        resolver.resolve_by_keep()
+        if Confirm.ask("Do it?"):
+            _cache.commit()
+
+
+if __name__ == "__main__":
     main()
