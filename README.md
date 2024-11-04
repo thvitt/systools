@@ -17,6 +17,7 @@ You can use pipx to install everything including python dependencies.
 | hcopy, hpaste          | Copy/Paste markdown as html                              |                    | Shell  |
 | j                      | Add a new entry to the LogSeq journal                    |                    | Python |
 | keyboard-overview      | Current keyboard map                                     |                    | Shell  |
+| monitor-switch         | Switch screen configurations using rofi                  |                    | Python |
 | nco                    | NextCloud Open (in browser)                              | not configurable   | Python |
 | pmvn                   | Run Maven in the nearest ancestor directory with a POM   |                    | Shell  |
 | ssh-exit-multiplex     | Exit multiplexed ssh connections                         | (below)            | Shell  |
