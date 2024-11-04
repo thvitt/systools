@@ -1,8 +1,8 @@
 ## Small System Tools
 
-This repository is intended for small scripts and utilities that do not fit anywhere else. Scripts marked with † are not in active use and maintenance. 
+This repository is intended for small scripts and utilities that do not fit anywhere else. Scripts marked with † are not in active use and maintenance.
 
-Python scripts reside in python submodules in `tv_systools`. They can usually also be used by copying the python script file and making it executable if you have their respective dependencies installed globally. All other scripts live in `scripts` and can just be copied to some bin directory. 
+Python scripts reside in python submodules in `tv_systools`. They can usually also be used by copying the python script file and making it executable if you have their respective dependencies installed globally. All other scripts live in `scripts` and can just be copied to some bin directory.
 
 You can use pipx to install everything including python dependencies.
 
@@ -15,6 +15,7 @@ You can use pipx to install everything including python dependencies.
 | glyphinfo              | Show info abut the glyphs of a font                      | `--help`           | Python |
 | git-cor                | Synchronously checkout submodules                        | `git cor --help`   | Shell  |
 | hcopy, hpaste          | Copy/Paste markdown as html                              |                    | Shell  |
+| j                      | Add a new entry to the LogSeq journal                    |                    | Python |
 | keyboard-overview      | Current keyboard map                                     |                    | Shell  |
 | pmvn                   | Run Maven in the nearest ancestor directory with a POM   |                    | Shell  |
 | ssh-exit-multiplex     | Exit multiplexed ssh connections                         | (below)            | Shell  |
