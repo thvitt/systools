@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from os import fspath
 from pathlib import Path
 import subprocess
+from typing import List, Optional
 from rich.console import Console
 from rich.table import Table
 import typer
@@ -12,13 +13,14 @@ import unicodedata
 
 app = typer.Typer()
 
-@dataclass
+
+@dataclass(frozen=True)
 class Glyph:
     codepoint: int
     glyphno: int
     glyphname: str | None
 
-    @property 
+    @property
     def char(self):
         return chr(self.codepoint)
 
@@ -47,21 +49,24 @@ def glyph_table(glyphs: Iterable[Glyph]) -> Table:
     table.add_column("Name")
 
     for glyph in glyphs:
-        table.add_row(glyph.char, glyph.code, glyph.glyphname, glyph.category, glyph.name)
+        table.add_row(
+            glyph.char, glyph.code, glyph.glyphname, glyph.category, glyph.name
+        )
 
     return table
+
 
 @app.command("table")
 def print_table(file: Path):
     """
-    Prints a table of all glyphs defined in the given font file. 
+    Prints a table of all glyphs defined in the given font file.
     The following columns will be available:
 
         - C: the actual character
 
         - Unicode: the unicode codepoint of the character
 
-        - Glyph: the glyph name defined in the font 
+        - Glyph: the glyph name defined in the font
 
         - category: the unicode category code (e.g., Lu for upper-case letter)
 
@@ -71,33 +76,45 @@ def print_table(file: Path):
     console = Console()
     console.print(table)
 
+
 @app.command("intervals")
-def print_intervals(file: Path):
+def print_intervals(file: Path, minus: Optional[List[Path]] = None):
     """
     Prints a list of all unicode codepoint intervals present in the font.
     """
-    glyphs = get_info(file)
+    glyphs = set(get_info(file))
+    if minus:
+        for subtract_font in minus:
+            subtract_glyphs = set(get_info(subtract_font))
+            glyphs -= subtract_glyphs
     ints = intervals(glyph.codepoint for glyph in glyphs)
-    print(",".join(f"U+{start:04X}-U+{end:04X}" if start != end else f"U+{start:04X}"
-                   for start, end in ints))
-
-
+    print(
+        ",".join(
+            f"U+{start:04X}-U+{end:04X}" if start != end else f"U+{start:04X}"
+            for start, end in ints
+        )
+    )
 
 
 def get_info(file: Path) -> Generator[Glyph, None, None]:
-    otfinfo = subprocess.run(['otfinfo', '-u', fspath(file)], capture_output=True, check=True, encoding='utf-8')
+    otfinfo = subprocess.run(
+        ["otfinfo", "-u", fspath(file)],
+        capture_output=True,
+        check=True,
+        encoding="utf-8",
+    )
     for line in otfinfo.stdout.splitlines():
         parts = line.split()
-        yield Glyph(int(parts[0][3:], 16),
-                    int(parts[1]),
-                    parts[2] if len(parts) > 2 else None)
+        yield Glyph(
+            int(parts[0][3:], 16), int(parts[1]), parts[2] if len(parts) > 2 else None
+        )
 
 
-def intervals(values: Iterable[int]) -> list[tuple[int,int]]:
+def intervals(values: Iterable[int]) -> list[tuple[int, int]]:
     """
     Finds continuous intervals of integers in values.
 
-    Returns a sorted list of (start, end) values for each interval. 
+    Returns a sorted list of (start, end) values for each interval.
 
     Example:
         >>> intervals([5,1,4,6,10,11,12,20])
@@ -107,7 +124,7 @@ def intervals(values: Iterable[int]) -> list[tuple[int,int]]:
     sorted_values = sorted(values)
     start = end = sorted_values[0]
     for value in sorted_values:
-        if value > end+1:
+        if value > end + 1:
             result.append((start, end))
             start = end = value
         end = value
