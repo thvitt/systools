@@ -23,6 +23,7 @@ dependencies = [
   "pzp>=0.0.25",
   "humanize>=4.11.0",
   "toml>=0.10.2",
+  "python-magic>=0.4.27",
 ]
 requires-python = ">=3.11"
 readme = "README.md"
@@ -42,6 +43,7 @@ public-link = "tv_systools.public_link:app"
 monitor-switch = "tv_systools.monitor_switch:main"
 json2toml = "tv_systools.jsontotoml:app"
 aps = "tv_systools.apt_search:app"
+wh = "tv_systools.superwhich:main"
 
 [tool.pdm]
 distribution = true
@@ -54,4 +56,9 @@ requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
 [dependency-groups]
-dev = ["bpython>=0.24", "ipykernel>=6.29.5", "ipython>=8.18.0"]
+dev = [
+    "better-exceptions>=0.3.3",
+    "bpython>=0.24",
+ "ipykernel>=6.29.5",
+ "ipython>=8.18.0",
+]
