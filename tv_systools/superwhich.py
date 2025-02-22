@@ -1,7 +1,6 @@
 import shlex
 import shutil
-from textwrap import dedent, indent
-from posix import open
+from textwrap import dedent
 from os import fspath
 from shutil import which
 from pathlib import Path
@@ -15,7 +14,8 @@ from rich.text import Text
 from rich.syntax import Syntax
 import subprocess
 
-from tv_systools.util import first
+from .util import first
+from .aptutils import Package
 
 
 def main():
@@ -39,7 +39,11 @@ def main():
             indent += 1
         print("  " * indent, magic.from_file(path))
         detail = (
-            pipx_info(path) or venv_info(path) or cargo_info(path) or getrel_info(path)
+            pipx_info(path)
+            or venv_info(path)
+            or cargo_info(path)
+            or getrel_info(path)
+            or apt_info(path)
         )
         if detail:
             print(" " * indent, detail)
@@ -171,3 +175,43 @@ def getrel_info(path: Path):
         return Text.from_ansi(proc.stdout)
     else:
         return None
+
+
+def apt_info(path: Path):
+    try:
+        if path.relative_to(Path.home()):
+            return None
+    except ValueError:
+        pass
+
+    import apt
+    from . import aptutils
+
+    package_name = _get_package_for(path)
+    cache = apt.Cache()
+    return Package(cache[package_name]).describe()
+
+
+def _get_package_for(path: Path):
+    if dlocate := shutil.which("dlocate"):
+        proc = subprocess.run(
+            [dlocate, "-F", fspath(path)],
+            capture_output=True,
+            text=True,
+        )
+    else:
+        proc = subprocess.run(
+            [shutil.which("dpkg-query") or "dpkg", "-S", fspath(path)],
+            capture_output=True,
+            text=True,
+        )
+
+    if proc.returncode != 0:
+        raise FileNotFoundError(f"Package not found for {path}")
+
+    for line in proc.stdout.splitlines():
+        package, file = line.split(": ", 2)
+        if path.samefile(file):
+            return package
+
+    raise FileNotFoundError(f"Package not found for {path} in {proc.stdout}")

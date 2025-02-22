@@ -1,6 +1,6 @@
 [project]
 name = "tv-systools"
-version = "0.3.0"
+version = "0.3.1"
 description = "Collection of system-related small tools"
 authors = [{ name = "Thorsten Vitt", email = "thorsten.vitt@uni-wuerzburg.de" }]
 dependencies = [
@@ -57,8 +57,8 @@ build-backend = "pdm.backend"
 
 [dependency-groups]
 dev = [
-    "better-exceptions>=0.3.3",
-    "bpython>=0.24",
- "ipykernel>=6.29.5",
- "ipython>=8.18.0",
+  "better-exceptions>=0.3.3",
+  "bpython>=0.24",
+  "ipykernel>=6.29.5",
+  "ipython>=8.18.0",
 ]
