@@ -13,6 +13,7 @@ from rich.text import Text
 from rich.live import Live
 from typer import Argument, Typer
 from typing import Any
+from .ui import pzp_table
 
 
 app = Typer()
@@ -85,12 +86,18 @@ class Package:
 
     def to_text(self):
         return Text(" ").join(
-            [
-                Text(self.icon),
-                Text(self.name, style="bold"),
-                Text(self.summary or "", style="cyan"),
-            ]
+            self.__row__(),
         )
+
+    def __row__(self):
+        return [
+            Text(self.icon),
+            Text(self.name, style="bold"),
+            Text(self.summary or "", style="cyan"),
+        ]
+
+    def __columns__(self):
+        return ["", "Name", "Description"]
 
     def __rich__(self):
         return self.to_text()
@@ -178,6 +185,7 @@ def describe_package(package: Package):
 def select_package(packages: Sequence[Package], input: str = "") -> Package | None:
     console = get_console()
     try:
+        # return pzp_table(packages)
         return pzp(
             packages,
             fullscreen=False,

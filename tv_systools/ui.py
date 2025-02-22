@@ -11,6 +11,7 @@ def pzp_table[
     columns: Sequence | None = None,
     row_factory: Callable[[T], Sequence] | None = None,
 ) -> T:
+    items = list(items)[:10]
     if columns is None:
         if hasattr(items[0], "__columns__"):
             columns = items[0].__columns__()
@@ -33,5 +34,5 @@ def pzp_table[
         console.print(table)
     header, *lines = capture.get().splitlines()
     result_map = dict(zip(lines, items))
-    result_line = pzp(lines, header_str=header, fullscreen=False)
+    result_line = pzp(lines, header_str="  " + header, fullscreen=False)
     return result_map[result_line]
