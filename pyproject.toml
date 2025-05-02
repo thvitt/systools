@@ -41,6 +41,7 @@ monitor-switch = "tv_systools.monitor_switch:main"
 json2toml = "tv_systools.jsontotoml:app"
 aps = "tv_systools.apt_search:app"
 wh = "tv_systools.superwhich:main"
+extract-mw-backup = "tv_systools.extract_mw_backup:app"
 linked-assets = "tv_systools.linked_assets:app"
 
 [project.optional-dependencies]
