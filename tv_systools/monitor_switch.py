@@ -6,7 +6,7 @@ from subprocess import run
 from dataclasses import dataclass
 import re
 import sys
-from typing import Self
+from typing import Literal, Self
 from xdg import BaseDirectory
 from copy import copy
 from time import sleep
@@ -251,21 +251,24 @@ class Notification:
         body: str = "",
         progress: int | None = None,
         icon: str = "video-display-symbolic",
+        urgency: Literal["low", "normal", "critical"] = "normal",
     ) -> None:
         self.summary = summary
         self.body = body
         self.icon = icon
         self.progress = progress
+        self.urgency = urgency
         self.show()
 
     def show(self, **kwargs):
-
         for key, value in kwargs.items():
             if hasattr(self, key):
                 setattr(self, key, value)
 
         options = [
             shutil.which("notify-send"),
+            "--urgency",
+            self.urgency,
             "--icon",
             self.icon,
             "--category",
@@ -285,12 +288,17 @@ class Notification:
 
 
 class ResetOption:
-
     def activate(self):
         notification = Notification(
-            "Resetting display configuration", "Stopping picom", progress=5
+            "Resetting display configuration",
+            "This will take a few seconds.",
+            progress=0,
         )
-        run(["systemctl", "--user", "stop", "picom"])
+        if rescan := shutil.which("pci-rescan"):
+            notification.show(body="Rescanning PCI devices", progress=5)
+            run([rescan])
+            sleep(0.5)
+        notification.show(body="Looking for external monitors", progress=10)
         relevant_outputs = [
             output
             for output in xrandr_config()
@@ -300,11 +308,16 @@ class ResetOption:
             message = "No external monitors found, cannot reset.\n\n" + "\n".join(
                 str(output) for output in xrandr_config()
             )
-            run(["rofi", "-e", message])
+            notification.show(body=message, urgency="critical", progress=100)
         else:
             notification.show(
+                body=f"{len(relevant_outputs)} external monitors found: {', '.join(o.name for o in relevant_outputs)}"
+            )
+            # run(["systemctl", "--user", "stop", "picom"])
+            run(["pkill", "-f", "picom"])
+            notification.show(
                 body=f"Turning off outputs {', '.join(map(str, relevant_outputs))}",
-                progress=10,
+                progress=20,
             )
             off_cmd = ["xrandr"]
             for output in relevant_outputs:
@@ -320,10 +333,12 @@ class ResetOption:
             notification.show(body="Reloading qtile configuration", progress=60)
             run(["qtile", "cmd-obj", "-o", "root", "-f", "reload_config"])
 
-        notification.show(body="Restarting picom", progress=80)
-        run(["systemctl", "--user", "start", "picom"])
-        notification.show(body="Reconfiguring qtile", progress=90)
-        run(["qtile", "cmd-obj", "-o", "root", "-f", "reconfigure_screens"])
+            notification.show(body="Restarting picom", progress=70)
+            # run(["systemctl", "--user", "start", "picom"])
+            run(["picom", "-b"])
+        notification.show(body="Restarting qtile", progress=90)
+        run(["qtile", "cmd-obj", "-o", "root", "-f", "restart"])
+        sleep(1)
         notification.show(body="The screens should be fine now.", progress=100)
 
     def to_pango(self):
