@@ -48,6 +48,7 @@ def rofi_read() -> str | None:
         [
             "rofi",
             "-dmenu",
+            "-keep-right",
             "-p",
             "– ",
             "-mesg",
