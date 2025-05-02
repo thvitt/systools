@@ -1,6 +1,6 @@
 [project]
 name = "tv-systools"
-version = "0.3.1"
+version = "0.4.0"
 description = "Collection of system-related small tools"
 authors = [{ name = "Thorsten Vitt", email = "thorsten.vitt@uni-wuerzburg.de" }]
 dependencies = [
@@ -20,6 +20,7 @@ dependencies = [
   "humanize>=4.11.0",
   "toml>=0.10.2",
   "python-magic>=0.4.27",
+  "lxml>=5.3.1",
 ]
 requires-python = ">=3.11"
 readme = "README.md"
@@ -40,6 +41,7 @@ monitor-switch = "tv_systools.monitor_switch:main"
 json2toml = "tv_systools.jsontotoml:app"
 aps = "tv_systools.apt_search:app"
 wh = "tv_systools.superwhich:main"
+linked-assets = "tv_systools.linked_assets:app"
 
 [project.optional-dependencies]
 gui = [
