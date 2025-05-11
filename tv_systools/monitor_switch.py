@@ -231,6 +231,7 @@ class XRandrOption:
         for mode in self.modes:
             cmdline.extend(mode.cmdline())
         run(cmdline)
+        run(["qtile", "cmd-obj", "-o", "root", "-f", "reload_config"])
 
     def to_pango(self):
         # first, sort the modes according to their relation field (right of etc.)
@@ -444,6 +445,7 @@ class AutorandrOption:
             run(["xset", "dpms", "force", "off"])
         else:
             run(["autorandr", self.name])
+            run(["qtile", "cmd-obj", "-o", "root", "-f", "reload_config"])
 
     def __hash__(self) -> int:
         return hash(self.name)
