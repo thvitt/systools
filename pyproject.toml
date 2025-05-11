@@ -1,6 +1,6 @@
 [project]
 name = "tv-systools"
-version = "0.5.1"
+version = "0.5.2"
 description = "Collection of system-related small tools"
 authors = [{ name = "Thorsten Vitt", email = "thorsten.vitt@uni-wuerzburg.de" }]
 dependencies = [

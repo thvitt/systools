@@ -6,7 +6,7 @@ from subprocess import run
 from dataclasses import dataclass
 import re
 import sys
-from typing import Literal, Self
+from typing import Callable, Iterable, Literal, Self, TypeVar
 from xdg import BaseDirectory
 from copy import copy
 from time import sleep
@@ -24,6 +24,19 @@ class Relation(Enum):
     RIGHT_OF = "--right-of"
     ABOVE = "--above"
     BELOW = "--below"
+
+
+T = TypeVar("T")
+U = TypeVar("U")
+
+
+def index_in(
+    haystack: Iterable[T], needle: U, /, *, key: Callable[[T], U] = lambda x: x
+) -> int:
+    for idx, item in enumerate(haystack):
+        if key(item) == needle:
+            return idx
+    raise IndexError(f"{needle} not in {haystack}")
 
 
 @dataclass
@@ -220,14 +233,28 @@ class XRandrOption:
         run(cmdline)
 
     def to_pango(self):
-        modes = []
-        for mode in self.modes:
+        # first, sort the modes according to their relation field (right of etc.)
+        reference = self.modes[0]
+        modes = [reference]
+        for mode in self.modes[1:]:
+            if mode.relation:
+                rel, ref = mode.relation
+                try:
+                    idx = index_in(modes, ref, key=lambda mode: mode.output)
+                    if rel == Relation.RIGHT_OF or rel == Relation.BELOW:
+                        idx += 1
+                    modes.insert(idx, mode)
+                except IndexError:
+                    modes.append(mode)
+
+        details = []
+        for mode in modes:
             detail = f'<span fgcolor="cyan">{mode.output.name}</span>: {mode.width}x{mode.height}'
             if mode.relation is not None:
                 detail += f' <span fgcolor="gray">({mode.relation[0].value.replace("-", " ").strip()} {mode.relation[1].name})</span>'
-            modes.append(detail)
-        label = self.label or " | ".join(mode.output.name for mode in self.modes)
-        return f"🪄 \t<b>{label}</b>\t{', '.join(modes)}"
+            details.append(detail)
+        label = self.label or " | ".join(mode.output.name for mode in modes)
+        return f"🪄 \t<b>{label}</b>\t{', '.join(details)}"
 
 
 class ManualOption:
