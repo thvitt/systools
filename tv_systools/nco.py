@@ -1,20 +1,74 @@
-#!/usr/bin/env python3
-
+from os import fspath
+import socket
 from pathlib import Path
-import sys
-from urllib.parse import urlencode
-import webbrowser
+from typing import Optional
+from xdg.BaseDirectory import get_runtime_dir
+from functools import cached_property
+from typer import Typer
+
+app = Typer()
 
 
-def main():
-    if len(sys.argv) > 1:
-        paths = [Path(arg) for arg in sys.argv[1:]]
-    else:
-        paths = [Path()]
-    dirs = [path if path.is_dir() else path.parent for path in paths]
-    root = Path.home() / "Documents/OwnCloud"
-    reldirs = [str(dir.absolute().relative_to(root)) for dir in dirs]
-    for reldir in reldirs:
-        webbrowser.open(
-            "https://cloud.thorstenvitt.de/apps/files?" + urlencode({"dir": reldir})
-        )
+class NextcloudSocket:
+    sock: socket.socket
+
+    def __init__(self):
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        socket_path = Path(get_runtime_dir(), "Nextcloud", "socket")
+        self.sock.connect(fspath(socket_path))
+        self.sock.settimeout(1)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.sock.close()
+
+    def command(self, command: str) -> None:
+        if not command.endswith("\n"):
+            command += "\n"
+        self.sock.sendall(command.encode())
+
+    def receive(self) -> str:
+        result = b""
+        try:
+            while True:
+                result += self.sock.recv(1024)
+        except TimeoutError:
+            return result.decode()
+
+    @cached_property
+    def paths(self) -> set[Path]:
+        self.command("VERSION:")
+        resp = self.receive()
+        result = set()
+        for line in resp.splitlines():
+            key, value = line.split(":", 1)
+            if key == "REGISTER_PATH":
+                result.add(Path(value))
+        return result
+
+    def is_managed(self, path: Path | str) -> bool:
+        abs = Path(path).resolve()
+        return any(abs.is_relative_to(root) for root in self.paths)
+
+    def open_in_browser(self, path: Path | str) -> None:
+        if not self.is_managed(path):
+            raise ValueError(f"{path} is not in a NextCloud managed folder")
+        else:
+            self.command(f"OPEN_PRIVATE_LINK:{fspath(path)}")
+
+
+@app.command()
+def main(path: Optional[Path]):
+    """
+    Open the given NextCloud path in the browser.
+    """
+    with NextcloudSocket() as nc:
+        if path is None:
+            path = Path()
+        nc.open_in_browser(path)
+
+
+if __name__ == "__main__":
+    app()

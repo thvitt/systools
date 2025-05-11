@@ -1,6 +1,6 @@
 [project]
 name = "tv-systools"
-version = "0.4.0"
+version = "0.5.0"
 description = "Collection of system-related small tools"
 authors = [{ name = "Thorsten Vitt", email = "thorsten.vitt@uni-wuerzburg.de" }]
 dependencies = [
@@ -33,7 +33,7 @@ fetch-and-link = "tv_systools.fetch_and_link:main"
 wacom-config = "tv_systools.wacom_config:main"
 glyphinfo = "tv_systools.glyphinfo:app"
 debug-gnome-extensions = "tv_systools.debug_gnome_extensions:main"
-nco = "tv_systools.nco:main"
+nco = "tv_systools.nco:app"
 j = "tv_systools.logseq_j:main"
 clean-sync-conflicts = "tv_systools.clean_sync_conflicts:app"
 public-link = "tv_systools.public_link:app"
