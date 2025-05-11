@@ -372,13 +372,30 @@ class ResetOption:
         return '💊 \t<b><span fgcolor="red">reset display setup</span></b>\t<span fgcolor="gray">Try to re-initialize the configuration</span>'
 
 
+class OffOption:
+    def activate(self):
+        notification = Notification(
+            "Turning off screens",
+            "Press any key to turn screens on again",
+            urgency="low",
+            progress=0,
+        )
+        for progress in range(3, 101, 3):
+            sleep(0.05)
+            notification.show(progress=progress)
+        run(["xset", "dpms", "force", "off"])
+
+    def to_pango(self):
+        return '󰶐 \t<b>all display off</b>\t<span fgcolor="gray">Any key to turn them on again</span>'
+
+
 class AutorandrOption:
     virtual_configs = {
         "common": "Mirror using largest common resolution",
         "clone-largest": "Mirror using largest resolution",
         "horizontal": "Extend desktop horizontally",
         "vertical": "Extend desktop vertically",
-        "off": "switch all displays off",
+        # "off": "switch all displays off",
     }
 
     @classmethod
@@ -510,6 +527,7 @@ def main():
         *AutorandrOption.detected(),
         *XRandrOption.suggested(),
         *AutorandrOption.virtual_options(),
+        OffOption(),
         ManualOption(),
         ResetOption(),
     ]
