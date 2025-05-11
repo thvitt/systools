@@ -1,8 +1,17 @@
-#!/bin/sh
+#!/bin/bash
 
 set_() {
+  theme=$(gsettings get org.gnome.desktop.interface gtk-theme)
+  theme=${theme:1:-1}
+  theme=${theme%-dark}
+  if [ "$1" = "prefer-dark" ]; then
+    theme="${theme}-dark"
+  fi
+
   gsettings set org.gnome.desktop.interface color-scheme "$1"
-  notify-send -u low -e "Desktop Theme" "Configured desktop theme to $1."
+  gsettings set org.gnome.desktop.interface gtk-theme "$theme"
+
+  notify-send -u low -e "Desktop Theme" "Configured desktop theme to <i>${1}</i>,\n legacy GTK theme <i>${theme}</i>"
 }
 
 get() {
