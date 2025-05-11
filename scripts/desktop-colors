@@ -1,0 +1,29 @@
+#!/bin/sh
+
+set_() {
+  gsettings set org.gnome.desktop.interface color-scheme "$1"
+  notify-send -u low -e "Desktop Theme" "Configured desktop theme to $1."
+}
+
+get() {
+  gsettings get org.gnome.desktop.interface color-scheme
+}
+
+case "$1" in
+dark)
+  set_ prefer-dark
+  ;;
+light)
+  set_ prefer-light
+  ;;
+default)
+  set_ default
+  ;;
+*)
+  if test $(get) = "'prefer-light'"; then
+    set_ prefer-dark
+  else
+    set_ prefer-light
+  fi
+  ;;
+esac
