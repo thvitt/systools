@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Reveal file
+Comment=Show file in default file manager
+Exec=reveal-file %U
+Icon=file-manager
+Type=Application
+MimeType=application/octet-stream;*/*;

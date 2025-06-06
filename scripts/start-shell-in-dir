@@ -1,0 +1,18 @@
+#!/bin/sh
+
+if [ $# -lt 1 ]; then
+  echo "Usage: $0 file-or-directory"
+  exit 2
+fi
+
+path=$(realpath -L -- "$1")
+
+if [ -d "$path" ]; then
+  dir="$1"
+else
+  dir=$(dirname "$path")
+fi
+
+cd "$dir" || exit 1
+
+exec "$SHELL" -i

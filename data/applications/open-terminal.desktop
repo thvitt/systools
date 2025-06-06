@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Open directory in Terminal
+Exec=start-shell-in-dir %F
+Icon=terminal
+Terminal=true
+Type=Application
+MimeType=application/octet-stream;*/*;

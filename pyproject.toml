@@ -59,6 +59,7 @@ distribution = true
 
 [tool.pdm.build.wheel-data]
 scripts = ["scripts/*"]
+data = ["data/**"]
 
 [build-system]
 requires = ["pdm-backend"]

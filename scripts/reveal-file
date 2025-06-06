@@ -1,0 +1,14 @@
+#!/bin/sh
+
+f=$(realpath -e -s -- "$1")
+exists=$?
+
+if [ $exists != 0 ]; then
+  echo "Usage: $0 existing-file"
+  echo "will reveal the given file in the default desktop file manager"
+  exit $exists
+else
+  dbus-send --session --print-reply --dest=org.freedesktop.FileManager1 --type=method_call \
+    /org/freedesktop/FileManager1 org.freedesktop.FileManager1.ShowItems \
+    "array:string:file://$f" string:""
+fi
