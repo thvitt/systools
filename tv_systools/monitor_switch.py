@@ -540,6 +540,7 @@ def main():
         [
             "rofi",
             "-dmenu",
+            "-i",
             "-p",
             "AutoRandR mode",
             "-no-custom",
