@@ -21,6 +21,9 @@ dependencies = [
   "toml>=0.10.2",
   "python-magic>=0.4.27",
   "lxml>=5.3.1",
+  "httpx>=0.28.1",
+  "tomlkit>=0.13.3",
+  "python-jsonpath>=1.3.1",
 ]
 requires-python = ">=3.11"
 readme = "README.md"
@@ -44,6 +47,7 @@ wh = "tv_systools.superwhich:main"
 extract-mw-backup = "tv_systools.extract_mw_backup:app"
 pipxtouvtools = "tv_systools.pipxtouvtools:get_pipx_specs"
 linked-assets = "tv_systools.linked_assets:app"
+ta = "tv_systools.tasmota:app"
 
 [project.optional-dependencies]
 gui = [
