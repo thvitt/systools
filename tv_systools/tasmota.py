@@ -33,10 +33,13 @@ def complete_devices(incomplete: str) -> list[str]:
     return [(name, config[name].get('description')) for name in device_names(config) if name.startswith(incomplete.strip())]
 
 def complete_commands(ctx: typer.Context, incomplete: str) -> list[str]:
-    device = ctx.params.get("device")
-    if device and device in config:
-        commands = config[device].get("commands", {})
-        return [cmd for cmd in commands if cmd.startswith(incomplete.strip())]
+    try:
+        device = resolve_device(ctx.params.get("device", ""))
+        if device and device in config:
+            commands = config[device].get("commands", {})
+            return [cmd for cmd in commands if cmd.startswith(incomplete.strip())]
+    except typer.BadParameter:
+        return []
 
 def show_device_info():
     table = Table(
