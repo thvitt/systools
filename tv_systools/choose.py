@@ -26,22 +26,25 @@ def main():
         usage()
 
     arg = sys.argv[1]
-    if arg.endswith("%"):
-        fraction = float(arg[:-1]) / 100
-        if fraction > 1:
-            usage(f"Fraction {fraction:4.4%} > 100% does not make sense.", 2)
-    else:
-        fraction = float(arg)
+    try:
+        if arg.endswith("%"):
+            fraction = float(arg[:-1]) / 100
+            if fraction > 1:
+                usage(f"Fraction {fraction:4.4%} > 100% does not make sense.", 2)
+        else:
+            fraction = float(arg)
 
-    source = sys.stdin.readlines()
-    n = len(source)
-    if fraction < 1:
-        k = round(fraction * n)
-    else:
-        k = int(fraction)
-    if k < 0:
-        usage(f"Negative number of samples ({k}) does not make sense.", 3)
-    sys.stdout.writelines(sample(source, k))
+        source = sys.stdin.readlines()
+        n = len(source)
+        if fraction < 1:
+            k = round(fraction * n)
+        else:
+            k = int(fraction)
+        if k < 0:
+            usage(f"Negative number of samples ({k}) does not make sense.", 3)
+        sys.stdout.writelines(sample(source, k))
+    except ValueError as e:
+        usage(str(e), 4)
 
 
 if __name__ == "__main__":
