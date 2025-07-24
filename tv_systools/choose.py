@@ -13,8 +13,8 @@ def usage(err="", retval=1):
 
     k may be:
 
-         k ≥ 1:                      absolute number of samples
-         0 < k < 1 or 0% < k < 100%: fraction of input lines to choose.
+         an integer, k ≥ 1:                   absolute number of samples
+         a float, 0 < k ≤ 1 or 0% < k < 100%: fraction of input lines to choose
     """,
         file=sys.stderr,
     )
@@ -22,24 +22,28 @@ def usage(err="", retval=1):
 
 
 def main():
-    if len(sys.argv) != 2:
+    if len(sys.argv) > 2:
         usage()
 
-    arg = sys.argv[1]
+    if len(sys.argv) < 2:
+        arg = "100%"
+    else:
+        arg = sys.argv[1]
+    source = sys.stdin.readlines()
+    n = len(source)
+    k = n
     try:
         if arg.endswith("%"):
             fraction = float(arg[:-1]) / 100
             if fraction > 1:
                 usage(f"Fraction {fraction:4.4%} > 100% does not make sense.", 2)
         else:
-            fraction = float(arg)
+            try:
+                k = int(arg)
+            except ValueError:
+                fraction = float(arg)
+                k = round(fraction * n)
 
-        source = sys.stdin.readlines()
-        n = len(source)
-        if fraction < 1:
-            k = round(fraction * n)
-        else:
-            k = int(fraction)
         if k < 0:
             usage(f"Negative number of samples ({k}) does not make sense.", 3)
         sys.stdout.writelines(sample(source, k))
