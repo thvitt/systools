@@ -32,7 +32,6 @@ license = { text = "MIT" }
 
 [project.scripts]
 apt-describe-update = "tv_systools.apt_describe_update:main"
-choice = "tv_systools.choose:main"
 fetch-and-link = "tv_systools.fetch_and_link:main"
 wacom-config = "tv_systools.wacom_config:main"
 glyphinfo = "tv_systools.glyphinfo:app"
