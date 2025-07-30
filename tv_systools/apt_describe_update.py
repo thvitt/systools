@@ -74,7 +74,7 @@ class LogRecord:
             return getattr(self, item)
         else:
             raise KeyError(
-                f'{item} is not one of the operations: {", ".join(self.operations)}'
+                f"{item} is not one of the operations: {', '.join(self.operations)}"
             )
 
     def __iter__(self):
@@ -86,7 +86,7 @@ class LogRecord:
         result = f"{self.start_date:%Y-%m-%d %H:%M}: "
         if self.error:
             result += self.error + " "
-        result += f'{" ".join(opstrs)}, {self.commandline} by {self.requested_by}'
+        result += f"{' '.join(opstrs)}, {self.commandline} by {self.requested_by}"
         return result
 
     def __repr__(self):
@@ -467,7 +467,7 @@ def undo(rec: LogRecord):
                 changed.pkg.candidate = changed.pkg.versions[
                     changed.version.old_version
                 ]
-            except KeyError as e:
+            except KeyError:
                 print(
                     f"{changed.name}: {changed.version.old_version} not available, only {changed.pkg.versions}, leaving candidate {changed.pkg.candidate}"
                 )

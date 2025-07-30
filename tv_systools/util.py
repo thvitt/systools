@@ -1,6 +1,6 @@
 import logging
 from types import EllipsisType
-from typing import Iterable, Literal, TypeVar, overload
+from typing import Iterable, TypeVar, overload
 from rich.logging import RichHandler
 
 from rich.console import Console

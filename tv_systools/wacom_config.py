@@ -101,7 +101,7 @@ def notification(devices, output, trigger, expect_failure, *, _may_restart=True)
             if trigger:
                 body += f'\n\nTriggered by {trigger}'
         else:
-            summary = f'No Wacom device found.'
+            summary = 'No Wacom device found.'
             body = 'Could not map any devices.'
         if devices or not expect_failure:
             _do_notify(summary, body, transient=True)

@@ -11,7 +11,6 @@ import magic
 import json
 from rich.table import Table
 from rich.text import Text
-from rich.syntax import Syntax
 import subprocess
 
 from .util import first
@@ -185,7 +184,6 @@ def apt_info(path: Path):
         pass
 
     import apt
-    from . import aptutils
 
     package_name = _get_package_for(path)
     cache = apt.Cache()

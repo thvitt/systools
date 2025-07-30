@@ -2,7 +2,7 @@ from collections.abc import Mapping, MutableMapping
 from typing import Annotated, Any, Optional
 import typer
 import httpx
-from xdg.BaseDirectory import load_config_paths, save_config_path
+from xdg.BaseDirectory import load_config_paths
 from pathlib import Path
 from collections import ChainMap
 from rich.table import Table

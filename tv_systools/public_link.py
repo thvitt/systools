@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from os import remove
 import typer
 import re
 from pathlib import Path
@@ -54,7 +53,7 @@ def edit():
 
 @app.command()
 def add(path: Optional[Path] = typer.Argument(None, help=f"The local path to publish. Must be inside {LOCAL_ROOT}. If missing, assume current path."), 
-        urlpath: Optional[str] = typer.Argument(None, help=f"The remote urlpath to use. If missing, create a safe automatic one.")):
+        urlpath: Optional[str] = typer.Argument(None, help="The remote urlpath to use. If missing, create a safe automatic one.")):
     """
     Adds a new urlpath configuration.
     """

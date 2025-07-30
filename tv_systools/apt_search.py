@@ -1,4 +1,4 @@
-from typing import Annotated, Iterable, Sequence, TypeVar
+from typing import Sequence, TypeVar
 
 import apt
 from pzp import CustomAction, pzp
@@ -9,8 +9,6 @@ from rich.columns import Columns
 from rich.text import Text
 from rich.live import Live
 from typer import Typer
-from typing import Any
-from .ui import pzp_table
 from .aptutils import Package
 
 

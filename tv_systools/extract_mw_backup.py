@@ -1,6 +1,5 @@
 from lxml import etree
 from pathlib import Path
-from sys import argv
 from mimetypes import guess_extension
 from typer import Typer
 
