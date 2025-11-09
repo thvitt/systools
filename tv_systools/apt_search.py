@@ -8,11 +8,12 @@ from rich.progress import track
 from rich.columns import Columns
 from rich.text import Text
 from rich.live import Live
-from typer import Typer
+from cyclopts import App
 from .aptutils import Package
 
 
-app = Typer()
+app = App()
+app.register_install_completion_command(add_to_startup=False)
 cache = apt.Cache()
 
 T = TypeVar("T")
@@ -97,7 +98,7 @@ def select_package(packages: Sequence[Package], input: str = "") -> Package | No
         inspect(action)
 
 
-@app.command()
+@app.default
 def search(package: str = ""):
     console = get_console()
     _packages = track(

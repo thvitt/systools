@@ -4,9 +4,10 @@ from pathlib import Path
 from typing import Optional
 from xdg.BaseDirectory import get_runtime_dir
 from functools import cached_property
-from typer import Typer
+from cyclopts import App
 
-app = Typer()
+app = App()
+app.register_install_completion_command(add_to_startup=False)
 
 
 class NextcloudSocket:
@@ -59,7 +60,7 @@ class NextcloudSocket:
             self.command(f"OPEN_PRIVATE_LINK:{fspath(path)}")
 
 
-@app.command()
+@app.default
 def main(path: Optional[Path]):
     """
     Open the given NextCloud path in the browser.

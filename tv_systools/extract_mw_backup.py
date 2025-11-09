@@ -1,12 +1,13 @@
 from lxml import etree
 from pathlib import Path
 from mimetypes import guess_extension
-from typer import Typer
+from cyclopts import App
 
-app = Typer()
+app = App()
+app.register_install_completion_command(add_to_startup=False)
 
 
-@app.command()
+@app.default
 def main(export_xml: Path, output_folder: Path):
     """
     Extracts pages from a MediaWiki XML backup file.

@@ -8,10 +8,11 @@ import subprocess
 from typing import List, Optional
 from rich.console import Console
 from rich.table import Table
-import typer
+from cyclopts import App
 import unicodedata
 
-app = typer.Typer()
+app = App()
+app.register_install_completion_command(add_to_startup=False)
 
 
 @dataclass(frozen=True)

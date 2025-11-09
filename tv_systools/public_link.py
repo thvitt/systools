@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-import typer
+import webbrowser
+from cyclopts.parameter import Parameter
+from typing_extensions import Annotated
+from cyclopts import App
 import re
 from pathlib import Path
 import sys
@@ -11,7 +14,8 @@ from rich.table import Table
 from rich.console import Console
 console = Console()
 
-app = typer.Typer()
+app = App()
+app.register_install_completion_command(add_to_startup=False)
 
 LOCAL_ROOT = (Path.home() / "Documents/OwnCloud").resolve()
 URL_ROOT = "https://public.thorstenvitt.de"
@@ -52,10 +56,14 @@ def edit():
     restart_server()
 
 @app.command()
-def add(path: Optional[Path] = typer.Argument(None, help=f"The local path to publish. Must be inside {LOCAL_ROOT}. If missing, assume current path."), 
-        urlpath: Optional[str] = typer.Argument(None, help="The remote urlpath to use. If missing, create a safe automatic one.")):
+def add(path: Optional[Path] = None,
+        urlpath: Optional[str] = None):
     """
     Adds a new urlpath configuration.
+
+    Args:
+        path: The local path to publish. Must be inside {LOCAL_ROOT}. If missing, assume current path.
+        urlpath: The remote urlpath to use. If missing, create a safe automatic one.
     """
     if not path:
         path = Path()
@@ -83,7 +91,7 @@ def add(path: Optional[Path] = typer.Argument(None, help=f"The local path to pub
     config[urlpath] = remote_path
     write_config(config)
     restart_server()
-    typer.launch(URL_ROOT + urlpath)
+    webbrowser.open(URL_ROOT + urlpath, autoraise=True)
 
 @app.command()
 def list():

@@ -5,11 +5,12 @@ import zipfile
 from pathlib import Path
 from typing import Annotated, Generator, Optional
 from zipfile import ZipFile
+from cyclopts import App, Parameter, validators
+from rich import print
 
-import typer
 from lxml import html, etree
 
-app = typer.Typer()
+app = App()
 
 
 class HtmlSource:
@@ -33,9 +34,7 @@ class HtmlSource:
                         except IOError:
                             pass
             except IOError as e:
-                typer.echo(
-                    f"[yellow]WARNING:[/yellow] Error parsing {path}: {e}", err=True
-                )
+                print(f"[yellow]WARNING:[/yellow] Error parsing {path}: {e}", file=sys.stderr)
                 pass  # non-html files are just ignored
 
     def zip(
@@ -76,27 +75,23 @@ class HtmlSource:
 
 @app.command("zip")
 def zip_(
-    html_files: Annotated[list[Path], typer.Argument(..., exists=True, dir_okay=False)],
-    output: Annotated[
-        Optional[Path], typer.Option("-o", "--output", metavar="ZIP")
-    ] = None,
-    stdin: Annotated[
-        Optional[str],
-        typer.Option(
-            "-i",
-            "--stdin",
-            metavar="FILENAME",
-            help="Dump the contents of stdin to a file with this name in the file",
-        ),
-    ] = None,
+    html_files: Annotated[list[Path], Parameter(validator=validators.Path(exists=True, dir_okay=False))],
+    output: Annotated[ Optional[Path], Parameter(validator=validators.Path(dir_okay=False)) ] = None,
+    stdin: Annotated[ Optional[str], Parameter(alias=["-i"]), ] = None,
     ignore_missing: Annotated[
         bool,
-        typer.Option(
-            "-m", "--ignore-missing", help="Skip non-existing files without failing"
-        ),
+        Parameter(alias=["-m"])
     ] = False,
 ):
-    """Creates a ZIP file from the given HTML files and the ressources they need"""
+    """
+    Creates a ZIP file from the given HTML files and the ressources they need.
+
+    Args:
+        html_files: The HTML files to include in the ZIP file.
+        output: The output ZIP file. If not provided, the first HTML file's name with a .zip extension will be used.
+        stdin: If provided, the contents of stdin will be written to a file with this name.
+        ignore_missing: if true, don’t complain about missing files
+    """
     source = HtmlSource(*html_files)
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
@@ -106,10 +101,10 @@ def zip_(
 @app.command()
 def copy(html_files: list[Path], target: Path):
     if len(html_files) > 1 and not target.is_dir():
-        typer.echo(
+        print(
             f"[red]Error:[/red] When passing multiple input files, the target ({target} must be a directory.",
-            err=True,
+            file=sys.stderr
         )
-        raise typer.Exit(1)
+        return 1
     for source in html_files:
         HtmlSource(source).copy(target)

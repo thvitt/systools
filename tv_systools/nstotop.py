@@ -7,6 +7,7 @@ from lxml import etree
 from cyclopts import App, Parameter
 
 app = App()
+app.register_install_completion_command(add_to_startup=False)
 
 XSI_SL = "{http://www.w3.org/2001/XMLSchema-instance}schemaLocation"
 

@@ -1,9 +1,10 @@
 import json
+from cyclopts import App
 import toml
-from typer import Typer
 from pathlib import Path
 
-app = Typer()
+app = App()
+app.register_install_completion_command(add_to_startup=False)
 
 
 def denull(data, replacement=None):
@@ -34,7 +35,7 @@ def denull(data, replacement=None):
         return data
 
 
-@app.command()
+@app.default
 def convert(json_file: Path, toml_file: Path, null_replacement=None):
     with open(json_file, "r") as f:
         data = json.load(f)

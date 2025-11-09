@@ -1,12 +1,13 @@
 from pathlib import Path
 from difflib import unified_diff
-import typer
+from cyclopts import App
 from .util import configure_logging
 from rich.console import Console
 from rich.syntax import Syntax
 import logging
 
-app = typer.Typer()
+app = App()
+app.register_install_completion_command(add_to_startup=False)
 logger = logging.getLogger(__name__)
 console = Console()
 
@@ -21,7 +22,7 @@ def basepath(conflict: Path) -> Path:
     return conflict.with_name(conflict.name[: conflict.name.find(".")] + new_suffixes)
 
 
-@app.command()
+@app.default
 def clean_interactively(roots: list[Path]):
     configure_logging(console)
     for root in roots:
