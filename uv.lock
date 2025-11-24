@@ -539,13 +539,12 @@ wheels = [
 
 [[package]]
 name = "logproc"
-source = { directory = "../logproc" }
-
-[package.metadata]
-
-[package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=7.0" }]
-docs = [{ name = "mkdocstrings", extras = ["python"], specifier = ">=0.30.0" }]
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/91/45/05f4047cf400e007cd658522794a0c1d6f0ef73e17792e91635fa1e25774/logproc-0.2.0.tar.gz", hash = "sha256:674091abc9eebae3d0273118f8d4592fda255b67545fa13461777c5d11f1fc71", size = 3505, upload-time = "2025-11-23T16:34:27.688Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ce/5c/7fb47071a502ea244f745dd0ff8c0bec1d6749cc7d17391d1c5629e0c80d/logproc-0.2.0-py3-none-any.whl", hash = "sha256:322f6c522611b6b3b183908ff3979de651d0fa191da0ed1c7ad7684a170b8331", size = 4484, upload-time = "2025-11-23T16:34:26.522Z" },
+]
 
 [[package]]
 name = "lxml"
@@ -1161,7 +1160,7 @@ requires-dist = [
     { name = "cyclopts", specifier = ">=4.2.1" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "humanize", specifier = ">=4.11.0" },
-    { name = "logproc", directory = "../logproc" },
+    { name = "logproc" },
     { name = "lxml", specifier = ">=5.3.1" },
     { name = "notify2", specifier = ">=0.3.1" },
     { name = "platformdirs", specifier = ">=4.2.2" },

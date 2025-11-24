@@ -72,9 +72,6 @@ distribution = true
 scripts = ["scripts/*"]
 data = ["data/**"]
 
-[tool.uv.sources]
-logproc = { path = "../logproc" }
-
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
