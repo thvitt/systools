@@ -1120,7 +1120,6 @@ dependencies = [
     { name = "notify2" },
     { name = "platformdirs" },
     { name = "prompt-toolkit" },
-    { name = "python-apt" },
     { name = "python-dateutil" },
     { name = "python-jsonpath" },
     { name = "python-magic" },
@@ -1137,6 +1136,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+apt = [
+    { name = "python-apt" },
+]
 gui = [
     { name = "pydbus" },
     { name = "pygobject" },
@@ -1166,7 +1168,7 @@ requires-dist = [
     { name = "prompt-toolkit" },
     { name = "pydbus", marker = "extra == 'gui'", specifier = ">=0.6.0" },
     { name = "pygobject", marker = "extra == 'gui'", specifier = ">=3.50.0" },
-    { name = "python-apt", git = "https://salsa.debian.org/apt-team/python-apt.git" },
+    { name = "python-apt", marker = "extra == 'apt'", git = "https://salsa.debian.org/apt-team/python-apt.git" },
     { name = "python-dateutil", specifier = ">=2.8.2" },
     { name = "python-jsonpath", specifier = ">=1.3.1" },
     { name = "python-magic", specifier = ">=0.4.27" },
@@ -1183,7 +1185,7 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.66.1" },
     { name = "typer", specifier = ">=0.9.0" },
 ]
-provides-extras = ["gui"]
+provides-extras = ["gui", "apt"]
 
 [package.metadata.requires-dev]
 dev = [

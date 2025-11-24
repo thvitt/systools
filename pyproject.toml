@@ -5,7 +5,6 @@ description = "Collection of system-related small tools"
 authors = [{ name = "Thorsten Vitt", email = "thorsten.vitt@uni-wuerzburg.de" }]
 dependencies = [
   "rich>=13.7.0",
-  "python-apt @ git+https://salsa.debian.org/apt-team/python-apt.git",
   "python-dateutil>=2.8.2",
   "ruyaml>=0.91.0",
   "notify2>=0.3.1",
@@ -60,6 +59,10 @@ gui = [
   "pydbus>=0.6.0",
   "systemd-python>=235",
 ]
+apt = [
+  "python-apt @ git+https://salsa.debian.org/apt-team/python-apt.git",
+]
+
 
 
 [tool.pdm]
