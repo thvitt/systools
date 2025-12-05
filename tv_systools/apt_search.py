@@ -1,3 +1,12 @@
+from typing import Self
+from os import remove
+from struct import pack
+from typing import Literal
+from gettext import install
+from tkinter import Pack
+from pzp.exceptions import AbortAction, AcceptAction
+from rich.console import Console
+from pzp.finder import Finder
 from typing import Sequence, TypeVar
 
 import apt
@@ -74,41 +83,82 @@ def format_package(pkg: apt.Package):
     return f"{icon} {pkg.name:20}\t{version.summary}"
 
 
-def select_package(packages: Sequence[Package], input: str = "") -> Package | None:
-    console = get_console()
-    try:
-        # return pzp_table(packages)
-        return pzp(
-            packages,
+class AptSearch:
+    console: Console
+    packages: Sequence[Package]
+    input: str
+    install: set[Package]
+    remove: set[Package]
+
+    def __init__(
+        self,
+        packages: Sequence[Package],
+        input: str = "",
+        parent: Self | None = None,
+    ):
+        self.packages = packages
+        self.input = input
+        self.console = get_console()
+        if parent is None:
+            self.install = set()
+            self.remove = set()
+        else:
+            self.install = parent.install
+            self.remove = parent.remove
+
+    def mark(self, package: Package, action: Literal["install", "remove"]):
+        if action == "install":
+            mark, unmark = self.install, self.remove
+        else:
+            mark, unmark = self.remove, self.install
+        mark.add(package)
+        if package in unmark:
+            unmark.remove(package)
+
+    def select(self):
+        finder = Finder(
+            self.packages,
             fullscreen=False,
-            height=console.height - 10,
-            lazy=True,
-            input=input,
+            height=self.console.height - 10,
+            lazy=False,
             layout="reverse",
             prompt_str=console_capture(
-                "[bold]⏎[/bold] details • [bold]^i[/bold] install • [bold]^u[/bold] upgrade • [bold]^r[/bold] remove • [bold]Esc[/bold] back [bold green]>[/bold green] ",
+                "[bold]⏎[/bold] details • [bold]^i[/bold] install • [bold]^r[/bold] remove • [bold]Esc[/bold] back [bold green]>[/bold green] ",
                 highlight=False,
             ),
             keys_binding={
                 "install": ["ctrl-i"],
-                "upgrade": ["ctrl-u"],
+                "remove": ["ctrl-r"],
             },
         )
-    except CustomAction as action:
-        inspect(action)
+        while True:
+            try:
+                finder.show(
+                    self.input
+                )  # TODO: do we get the selection number from somewhere?
+            except CustomAction as action:
+                self.input = action.line or ""
+                self.mark(action.selected_item, action.action)  # pyright: ignore[reportArgumentType]
+            except AcceptAction as action:
+                self.input = action.line or ""
+                self.showpkg(action.selected_item)
+            except AbortAction:
+                break
+
+    def showpkg(self, package: Package):
+        print(package.describe())
+        option = key_menu(i="install", r="remove", q="back")
+        if option == "install" or option == "remove":
+            self.mark(package, option)
 
 
 @app.default
 def search(package: str = ""):
-    console = get_console()
     _packages = track(
         map(Package, cache),
         description="Loading package info",
         transient=True,
         total=len(cache),
     )
-    packages = {pkg.name: pkg for pkg in _packages if pkg.simple}
-    while selected := select_package(packages.values(), input=package):
-        print(selected.describe())
-        option = key_menu(i="install", u="upgrade", q="back")
-        print(option)
+    packages = [pkg for pkg in _packages if pkg.simple]
+    AptSearch(packages, package).select()
