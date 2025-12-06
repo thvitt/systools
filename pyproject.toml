@@ -53,6 +53,7 @@ nstotop = "tv_systools.nstotop:app"
 ta = "tv_systools.tasmota:app"
 git-fix-remotes = "tv_systools.fix_github_remote:app"
 pdfshrink = "tv_systools.pdfshrink:app"
+git-ignore = "tv_systools.git_ignore:app"
 
 [project.optional-dependencies]
 gui = [
