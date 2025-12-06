@@ -1,3 +1,5 @@
+import shlex
+from subprocess import run
 from typing import Self
 from os import remove
 from struct import pack
@@ -15,6 +17,7 @@ from pzp.input import get_char
 from rich import get_console, inspect, print
 from rich.progress import track
 from rich.columns import Columns
+from rich.syntax import Syntax
 from rich.text import Text
 from rich.live import Live
 from cyclopts import App
@@ -151,6 +154,23 @@ class AptSearch:
         if option == "install" or option == "remove":
             self.mark(package, option)
 
+    def commit(self):
+        cmd = ["sudo", "apt"]
+        if self.install:
+            cmd.append("install")
+            cmd.extend(pkg.name for pkg in self.install)
+            cmd.extend(pkg.name + "-" for pkg in self.remove)
+        elif self.remove:
+            cmd.append("remove")
+            cmd.extend(pkg.name for pkg in self.remove)
+        else:
+            return  # nothing to do
+        self.console.print(Syntax(shlex.join(cmd), "shell"))
+        proc = run(cmd)
+        if proc.returncode == 0:
+            self.install.clear()
+            self.remove.clear()
+
 
 @app.default
 def search(package: str = ""):
@@ -161,4 +181,6 @@ def search(package: str = ""):
         total=len(cache),
     )
     packages = [pkg for pkg in _packages if pkg.simple]
-    AptSearch(packages, package).select()
+    aps = AptSearch(packages, package)
+    aps.select()
+    aps.commit()
