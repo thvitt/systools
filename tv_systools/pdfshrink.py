@@ -11,7 +11,7 @@ from rich.text import Text
 from functools import partial
 from rich.progress import Progress
 from typing import Annotated
-from .async_utils import map_unordered
+from logproc import map_unordered
 from .util import configure_logging
 from os import fspath, process_cpu_count
 from pathlib import Path
@@ -164,6 +164,8 @@ async def pdfshrink(
     results: list[ShrinkResult] = []
     if largest_first:
         sources = sorted(sources, key=lambda p: p.stat().st_size, reverse=True)
+
+    logging.debug("Shrinking %d PDFs: %s", len(sources), sources)
 
     with Progress(
         TextColumn("Shrinking PDFs"),
