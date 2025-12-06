@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+
+from typing import ClassVar
 import apt
 from humanize import naturalsize
 from rich.columns import Columns
@@ -7,12 +11,27 @@ from rich.console import Group
 
 
 class Package:
+    RELATIONS: ClassVar[tuple[str, ...]] = (
+        "Breaks",
+        "Replaces",
+        "Provides",
+        "Conflicts",
+        "Depends",
+        "PreDepends",
+        "Recommends",
+        "Suggests",
+    )
+
     def __init__(self, pkg: apt.Package):
         self.pkg = pkg
         if pkg.is_upgradable:
             self.icon = "↑"
         elif pkg.is_installed:
             self.icon = "✓"
+        elif pkg.marked_install:
+            self.icon = "+"
+        elif pkg.marked_delete:
+            self.icon = "-"
         else:
             self.icon = " "
         self.version = pkg.candidate or pkg.installed or list(pkg.versions)[0]
@@ -55,17 +74,8 @@ class Package:
             field("Architecture", self.version.architecture),
         ]
         related = []
-        for relation in (
-            "Breaks",
-            "Replaces",
-            "Provides",
-            "Conflicts",
-            "Depends",
-            "PreDepends",
-            "Recommends",
-            "Suggests",
-        ):
-            deps = self.version.get_dependencies(relation, "")
+        for relation in self.RELATIONS:
+            deps = self.version.get_dependencies(relation)
             texts = []
             for dep in deps:
                 text = Text(dep.rawstr)
@@ -82,3 +92,38 @@ class Package:
             Group(metadata, Text(), self.version.description, Text(), relations),
             title=self.to_text(),
         )
+
+    def related(self) -> list[RelatedPackage]:
+        result = []
+        for relation in self.RELATIONS:
+            deps = self.version.get_dependencies(relation)
+            for dep in deps:
+                for version in dep.target_versions:
+                    result.append(RelatedPackage(version.package, relation))
+        return result
+
+
+class RelatedPackage(Package):
+    _COLORS = {
+        "Breaks": "red",
+        "Replaces": "violet",
+        "Provides": "white",
+        "Conflicts": "red",
+        "Depends": "yellow",
+        "PreDepends": "yellow",
+        "Recommends": "green",
+        "Suggests": "cyan",
+    }
+
+    def __init__(self, pkg: apt.Package, relation: str):
+        super().__init__(pkg)
+        self.relation = relation
+
+    def __columns__(self):
+        return ["Relation", *super().__columns__()]
+
+    def __row__(self):
+        return [
+            Text(self.relation, style=self._COLORS.get(self.relation, "")),
+            *super().__row__(),
+        ]

@@ -1,28 +1,22 @@
 import shlex
 from subprocess import run
-from typing import Self
-from os import remove
-from struct import pack
-from typing import Literal
-from gettext import install
-from tkinter import Pack
-from pzp.exceptions import AbortAction, AcceptAction
-from rich.console import Console
-from pzp.finder import Finder
-from typing import Sequence, TypeVar
+from typing import Literal, Self, Sequence, TypeVar
 
 import apt
-from pzp import CustomAction, pzp
+from cyclopts import App
+from pzp import CustomAction
+from pzp.exceptions import AbortAction, AcceptAction
+from pzp.finder import Finder
 from pzp.input import get_char
-from rich import get_console, inspect, print
-from rich.progress import track
+from rich import get_console, print
 from rich.columns import Columns
+from rich.console import Console
+from rich.live import Live
+from rich.progress import track
 from rich.syntax import Syntax
 from rich.text import Text
-from rich.live import Live
-from cyclopts import App
-from .aptutils import Package
 
+from .aptutils import Package
 
 app = App()
 app.register_install_completion_command(add_to_startup=False)
@@ -118,11 +112,11 @@ class AptSearch:
         if package in unmark:
             unmark.remove(package)
 
-    def select(self):
+    def select(self, lines_before=10):
         finder = Finder(
             self.packages,
             fullscreen=False,
-            height=self.console.height - 10,
+            height=self.console.height - lines_before,
             lazy=False,
             layout="reverse",
             prompt_str=console_capture(
@@ -149,10 +143,17 @@ class AptSearch:
                 break
 
     def showpkg(self, package: Package):
-        print(package.describe())
-        option = key_menu(i="install", r="remove", q="back")
-        if option == "install" or option == "remove":
-            self.mark(package, option)
+        description = package.describe()
+        print(description)
+        related = package.related()
+        if related:
+            AptSearch(related, parent=self).select(
+                lines_before=len(self.console.render_lines(description)) + 2
+            )  # TODO: Add install/remove option
+        else:
+            option = key_menu(i="install", r="remove", q="back")
+            if option == "install" or option == "remove":
+                self.mark(package, option)
 
     def commit(self):
         cmd = ["sudo", "apt"]
