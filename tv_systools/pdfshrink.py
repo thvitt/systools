@@ -1,27 +1,31 @@
+import logging
+import shutil
+from dataclasses import dataclass
+from functools import partial
+from os import PathLike, fspath, process_cpu_count
+from pathlib import Path
+from shlex import join
+from tempfile import NamedTemporaryFile
+from typing import Annotated, Optional
+
+from cyclopts import App, Parameter
+from cyclopts.types import PositiveInt
+from humanize import naturalsize
+from logproc import aexecute, map_unordered
+from rich import print
 from rich.progress import (
     BarColumn,
-    ProgressColumn,
     MofNCompleteColumn,
+    Progress,
+    ProgressColumn,
     Task,
     TextColumn,
 )
-from typing import Optional
 from rich.table import Column
 from rich.text import Text
-from functools import partial
-from rich.progress import Progress
-from typing import Annotated
-from logproc import map_unordered
+from typing_extensions import Literal
+
 from .util import configure_logging
-from os import fspath, process_cpu_count
-from pathlib import Path
-import shutil
-from cyclopts import App, Parameter
-from humanize import naturalsize
-from rich import print
-from tempfile import NamedTemporaryFile
-from logproc import aexecute
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -92,28 +96,88 @@ class ShrinkResult:
                 self.compressed.unlink()
 
 
+@Parameter("*", group="PDF Options")
+@dataclass(frozen=True)
+class GhostscriptOptions:
+    preset: Literal["screen", "ebook", "printer", "prepress"] | None = None
+    """Use a GhostScript preset.
+    `screen` will probably generate the smallest files, with really ugly images.
+    """
+
+    compatibility: Annotated[str, Parameter(alias=["-c"])] = "1.7"
+    """PDF compatibility level"""
+
+    resolution: Annotated[PositiveInt | None, Parameter(alias=["-r"])] = None
+    """downsample color and grayscale images to this resolution (dpi)"""
+
+    def cmdline(
+        self, src: PathLike | None = None, dst: PathLike | None = None
+    ) -> list[str]:
+        """
+        Builds a command line for Ghostscript, including the executable file.
+
+        Args:
+            src: the file to convert. If missing, this option will not be included.
+            dst: the file to create. If missing, this option (-o) will not be included.
+
+        Returns:
+            a command line as list of arguments
+        """
+        cmd = shutil.which("gs")
+        if cmd is None:
+            raise FileNotFoundError(
+                "The ghostscript executable (gs) could not be found."
+            )
+        result = [
+            cmd,
+            "-sDEVICE=pdfwrite",
+        ]
+
+        if self.preset is not None:
+            result.append(f"-dPDFSETTINGS=/{self.preset}")
+
+        if self.compatibility:
+            result.append(f"-dCompatibilityLevel={self.compatibility}")
+
+        if self.resolution:
+            result.extend(
+                [
+                    f"-r{self.resolution}",
+                    "-dDownsampleColorImages=true",
+                    "-dColorImageDownsampleType=/Bicubic",
+                    f"-dColorImageResolution={self.resolution}",
+                    "-dDownsampleGrayImages=true",
+                    "-dGrayImageDownsampleType=/Bicubic",
+                    f"-dGrayImageResolution={self.resolution}",
+                ]
+            )
+
+        if dst:
+            result.extend(["-o", fspath(dst)])
+        else:
+            result.extend(["-dNOPAUSE", "-dBATCH"])  # included in -o
+
+        if src:
+            result.append(fspath(src))
+
+        return result
+
+
 async def shrink_file(
-    source: Path, output: Path | None = None, tolerance: float = 0.01
+    source: Path,
+    output: Path | None = None,
+    tolerance: float = 0.01,
+    gs: GhostscriptOptions = GhostscriptOptions(),
 ) -> ShrinkResult:
-    gs = shutil.which("gs")
-    if gs is None:
-        raise OSError("Ghostscript (gs) not found in PATH")
     with NamedTemporaryFile(
         delete_on_close=False, suffix=".pdf", prefix=f".{source.stem}__"
     ) as tempfile:
         tempfile.close()
         compressed = Path(tempfile.name)
+        cmdline = gs.cmdline(source, compressed)
+        logger.debug("Executing %s", join(cmdline))
         exitcode = await aexecute(
-            [
-                gs,
-                f"-o{fspath(compressed)}",
-                "-sDEVICE=pdfwrite",
-                "-dCompatibilityLevel=1.4",
-                "-dPDFSETTINGS=/screen",
-                # "-dQUIET",
-                "-dNOPAUSE",
-                fspath(source),
-            ],
+            cmdline,
             prefix=source.name + ": ",
             stdout_level=logging.DEBUG,
         )
@@ -141,6 +205,7 @@ async def pdfshrink(
     sources: list[Path],
     /,
     *,
+    gs: GhostscriptOptions = GhostscriptOptions(),
     tolerance: Annotated[float, Parameter(alias="t")] = 0.01,
     parallel: Annotated[int, Parameter(alias="-p")] = process_cpu_count() or 8,
     largest_first: Annotated[bool, Parameter(alias="-l")] = True,
@@ -176,7 +241,7 @@ async def pdfshrink(
     ) as progress:
         progress_task = progress.add_task("Shrinking PDFs...", total=len(sources))
         async for result in map_unordered(
-            partial(shrink_file, tolerance=tolerance), sources, limit=parallel
+            partial(shrink_file, tolerance=tolerance, gs=gs), sources, limit=parallel
         ):
             progress.update(progress_task, advance=1, result=result)
             logger.info("%s", result)

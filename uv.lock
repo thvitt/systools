@@ -541,18 +541,11 @@ wheels = [
 
 [[package]]
 name = "logproc"
-source = { directory = "../logproc" }
-
-[package.metadata]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = ">=7.0" },
-    { name = "pytest-asyncio", specifier = ">=1.3.0" },
-]
-docs = [
-    { name = "mkdocstrings", extras = ["python"], specifier = ">=0.30.0" },
-    { name = "pymdown-extensions", specifier = ">=10.16" },
+version = "0.3.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/da/f6/12c6240655763b88c0a8a83ae75da20c2b0a77209cbe6a196d2a165e5552/logproc-0.3.1.tar.gz", hash = "sha256:c7e0ca7a6851801785298bf33b4d1db418f7a5de423ab52939cb292dfb0eed73", size = 4829, upload-time = "2025-12-08T21:56:20.315Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d8/c4/114f68e29947ccad64ec3aa5914bd8dd2586ca6c5ad06e293e87960feb7d/logproc-0.3.1-py3-none-any.whl", hash = "sha256:35571324f3570a0819ec9c2ce938ff9bcde21c79abd67d7fbcbf166cfbab4ae7", size = 5157, upload-time = "2025-12-08T21:56:19.505Z" },
 ]
 
 [[package]]
@@ -1111,7 +1104,7 @@ wheels = [
 
 [[package]]
 name = "tv-systools"
-version = "0.6.4"
+version = "0.6.5"
 source = { editable = "." }
 dependencies = [
     { name = "cyclopts" },
@@ -1163,7 +1156,8 @@ requires-dist = [
     { name = "cyclopts", specifier = ">=4.2.1" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "humanize", specifier = ">=4.11.0" },
-    { name = "logproc", directory = "../logproc" },
+    { name = "logproc", specifier = ">=0.2.0" },
+    { name = "logproc", specifier = ">=0.3.0" },
     { name = "lxml", specifier = ">=5.3.1" },
     { name = "notify2", specifier = ">=0.3.1" },
     { name = "platformdirs", specifier = ">=4.2.2" },
