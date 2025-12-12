@@ -63,3 +63,15 @@ class SubtasksColumn(ProgressColumn):
     @override
     def render(self, task: Task) -> RenderableType:
         return Text(", ".join(self.subtasks.keys()), overflow="ellipsis")
+
+
+class RenderableExtraColumn(ProgressColumn):
+    def __init__(
+        self, extra_key: str, default: str = "", table_column: Optional[Column] = None
+    ):
+        super().__init__(table_column=table_column)
+        self.extra_key = extra_key
+        self.default = default
+
+    def render(self, task: Task) -> Text:
+        return task.fields.get(self.extra_key, Text(self.default))

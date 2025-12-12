@@ -1,5 +1,5 @@
 from shutil import which
-from typing import Literal
+from typing import Literal, cast, override
 import logging
 from dataclasses import dataclass
 from functools import partial
@@ -16,6 +16,7 @@ from cyclopts.types import PositiveInt
 from humanize import naturalsize
 from logproc import aexecute, map_unordered
 from rich import print
+from rich.console import RenderableType
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
@@ -250,16 +251,26 @@ async def shrink_file(
         return result
 
 
-class RenderableExtraColumn(ProgressColumn):
-    def __init__(
-        self, extra_key: str, default: str = "", table_column: Optional[Column] = None
-    ):
-        super().__init__(table_column=table_column)
-        self.extra_key = extra_key
-        self.default = default
+class ImprovementColumn(ProgressColumn):
+    total: dict[Path, int]
+    improvement: dict[Path, int]
 
-    def render(self, task: Task) -> Text:
-        return task.fields.get(self.extra_key, Text(self.default))
+    def __init__(self, table_column: Optional[Column] = None) -> None:
+        super().__init__(table_column)
+        self.total = {}
+        self.improvement = {}
+
+    @override
+    def render(self, task: "Task") -> RenderableType:
+        if "result" in task.fields:
+            result = cast(ShrinkResult, task.fields["result"])
+            self.total[result.original] = result.original_size
+            self.improvement[result.original] = result.improvement
+        improvement = sum(self.improvement.values())
+        if improvement > 0:
+            return f"{naturalsize(sum(self.total.values()))}-[green]{naturalsize(improvement)}[/green]"
+        else:
+            return naturalsize(sum(self.total.values()))
 
 
 @app.default
@@ -300,6 +311,7 @@ async def pdfshrink(
         TextColumn("Shrinking PDFs"),
         BarColumn(),
         MofNCompleteColumn(),
+        ImprovementColumn(),
         subtasks := SubtasksColumn(),
         transient=True,
     ) as progress:
