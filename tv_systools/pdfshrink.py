@@ -6,7 +6,7 @@ from os import PathLike, fspath, process_cpu_count
 from pathlib import Path
 from shlex import join
 from tempfile import NamedTemporaryFile
-from typing import Annotated, Optional
+from typing import Annotated, Optional, assert_never
 
 from cyclopts import App, Parameter
 from cyclopts.types import PositiveInt
@@ -23,14 +23,82 @@ from rich.progress import (
 )
 from rich.table import Column
 from rich.text import Text
-from typing_extensions import Literal
+import rich.traceback
+from typing_extensions import Literal, deprecated
 
 from .util import configure_logging
 
 logger = logging.getLogger(__name__)
+rich.traceback.install()
 
-app = App()
+app = App(help_on_error=True)
 app.register_install_completion_command(add_to_startup=False)
+
+
+def move(what: Path, where: Path):
+    """Tries to move what to where, either directly or by copying and removing"""
+    try:
+        what.replace(where)
+    except OSError as e:
+        logging.debug("Failed to move %s to %s, trying copy+delete: %s", what, where, e)
+        shutil.copy2(what, where)
+        what.unlink()
+
+
+@Parameter("*", group="Output Parameters")
+@dataclass(frozen=True)
+class OutputOptions:
+    output: Annotated[Path | None, Parameter(alias="-o")] = None
+    """Output path for the files that have been shrunk. If missing, overwrite source file."""
+
+    copy_unchanged: Annotated[bool, Parameter(negative="-U")] = True
+    """Copy unchanged files to the output name or directory"""
+
+    backup: bool = False
+    """Create a backup instead of replacing files."""
+
+    backup_suffix: str = "~"
+    """Appended to the file name to create a backup file. If it contains a `{}`, we assume a pattern and replace {} with the original filename."""
+
+    def validate(self, input: list[Path]):
+        """Checks whether the input is compatible with the output settings."""
+        if self.output is None:
+            return True
+        if self.output.is_file():
+            if len(input) > 1:
+                raise ValueError(
+                    f"Multiple input files ({len(input)}) are present, the output ({self.output}) must be a directory (or missing, meaning in-place optimization)"
+                )
+        if not self.output.exists() and len(input) > 1:
+            logger.debug("Creating output directory %s", self.output)
+            self.output.mkdir(parents=True)
+        return True
+
+    def do_backup(self, what: Path):
+        if self.backup:
+            if "{}" in self.backup_suffix:
+                target = what.parent / self.backup_suffix.format(what.name)
+            else:
+                target = what.with_name(what.name + self.backup_suffix)
+        else:
+            target = what.with_name(what.name + "~")
+        move(what, target)
+
+    def finalize(self, result: "ShrinkResult") -> None:
+        if result.improved and self.output is None:  # overwrite original
+            self.do_backup(result.original)
+            move(result.compressed, result.original)
+        elif result.improved or self.copy_unchanged and self.output is not None:
+            assert self.output is not None
+            if self.output.is_dir():
+                result.output = self.output / result.original.name
+            else:
+                result.output = self.output
+            if result.improved:
+                shutil.copy2(result.compressed, result.output)
+            else:
+                shutil.copy2(result.original, result.output)
+        # else nothing to do
 
 
 class ShrinkResult:
@@ -82,18 +150,10 @@ class ShrinkResult:
     def __str__(self) -> str:
         return str(Text.from_markup(self.__rich__()))
 
+    @deprecated("Use OutputOptions.finalize() instead")
     def finalize(self):
         if self.improved:
-            try:
-                self.compressed.replace(self.output or self.original)
-            except OSError as e:
-                logging.debug(
-                    "Failed to move compressed file %s into place, trying copy+delete: %s",
-                    self.compressed,
-                    e,
-                )
-                shutil.copy2(self.compressed, self.output or self.original)
-                self.compressed.unlink()
+            move(self.compressed, self.output or self.original)
 
 
 @Parameter("*", group="PDF Options")
@@ -165,9 +225,9 @@ class GhostscriptOptions:
 
 async def shrink_file(
     source: Path,
-    output: Path | None = None,
     tolerance: float = 0.01,
     gs: GhostscriptOptions = GhostscriptOptions(),
+    output: OutputOptions = OutputOptions(),
 ) -> ShrinkResult:
     with NamedTemporaryFile(
         delete_on_close=False, suffix=".pdf", prefix=f".{source.stem}__"
@@ -181,10 +241,8 @@ async def shrink_file(
             prefix=source.name + ": ",
             stdout_level=logging.DEBUG,
         )
-        result = ShrinkResult(
-            exitcode == 0, source, compressed, output, tolerance=tolerance
-        )
-        result.finalize()
+        result = ShrinkResult(exitcode == 0, source, compressed, tolerance=tolerance)
+        output.finalize(result)
         return result
 
 
@@ -206,6 +264,7 @@ async def pdfshrink(
     /,
     *,
     gs: GhostscriptOptions = GhostscriptOptions(),
+    output: OutputOptions = OutputOptions(),
     tolerance: Annotated[float, Parameter(alias="t")] = 0.01,
     parallel: Annotated[int, Parameter(alias="-p")] = process_cpu_count() or 8,
     largest_first: Annotated[bool, Parameter(alias="-l")] = True,
@@ -226,6 +285,7 @@ async def pdfshrink(
     configure_logging(
         level=logging.DEBUG if debug else (logging.INFO if verbose else logging.WARNING)
     )
+    output.validate(sources)
     results: list[ShrinkResult] = []
     if largest_first:
         sources = sorted(sources, key=lambda p: p.stat().st_size, reverse=True)
@@ -241,7 +301,9 @@ async def pdfshrink(
     ) as progress:
         progress_task = progress.add_task("Shrinking PDFs...", total=len(sources))
         async for result in map_unordered(
-            partial(shrink_file, tolerance=tolerance, gs=gs), sources, limit=parallel
+            partial(shrink_file, tolerance=tolerance, gs=gs, output=output),
+            sources,
+            limit=parallel,
         ):
             progress.update(progress_task, advance=1, result=result)
             logger.info("%s", result)
