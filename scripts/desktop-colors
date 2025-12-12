@@ -18,6 +18,16 @@ get() {
   gsettings get org.gnome.desktop.interface color-scheme
 }
 
+help() {
+  cat <<EOF
+$0 – toggle the color scheme
+
+Usage: $0 [dark | light | default]
+
+Uses gsettings to switch the main desktop preference between dark and light theme. Calling the script without parameters toggles.
+EOF
+}
+
 case "$1" in
 dark)
   set_ prefer-dark
@@ -28,8 +38,11 @@ light)
 default)
   set_ default
   ;;
+--help)
+  help
+  ;;
 *)
-  if test $(get) = "'prefer-light'"; then
+  if test "$(get)" = "'prefer-light'"; then
     set_ prefer-dark
   else
     set_ prefer-light

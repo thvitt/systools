@@ -24,6 +24,7 @@ Python scripts reside in python submodules in `tv_systools`. All other scripts l
 | linked-assets          | ZIP or copy a HTML file with all local files linked from there           | --help           | Python |
 | monitor-switch         | Switch screen configurations using rofi                                  |                  | Python |
 | nco                    | NextCloud Open (in browser)                                              | not configurable | Python |
+| pdfshrink              | try to reduce PDF files’ file size (using ghostscript)                   | --help           | Python |
 | pipxtouvtools          | generate a script with `uv tool install` commands for current pipx setup |                  | Python |
 | pmvn                   | Run Maven in the nearest ancestor directory with a POM                   |                  | Shell  |
 | public-link            | _very_ specific tool to create a public link for a file in my nectcloud  |                  | Python |

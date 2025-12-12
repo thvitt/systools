@@ -3,7 +3,7 @@
 f=$(realpath -e -s -- "$1")
 exists=$?
 
-if [ $exists != 0 ]; then
+if [ $exists != 0 ] || [ "$1" = "--help" ]; then
   echo "Usage: $0 existing-file"
   echo "will reveal the given file in the default desktop file manager"
   exit $exists
