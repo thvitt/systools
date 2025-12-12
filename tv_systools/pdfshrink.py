@@ -28,6 +28,8 @@ from rich.table import Column
 from rich.text import Text
 import rich.traceback
 
+from tv_systools.ui import SubtasksColumn
+
 from .util import configure_logging
 
 logger = logging.getLogger(__name__)
@@ -225,7 +227,10 @@ async def shrink_file(
     tolerance: float = 0.01,
     gs: GhostscriptOptions = GhostscriptOptions(),
     output: OutputOptions = OutputOptions(),
+    subtasks: SubtasksColumn | None = None,
 ) -> ShrinkResult:
+    if subtasks:
+        subtasks.add(source.stem)
     with NamedTemporaryFile(
         delete_on_close=False, suffix=".pdf", prefix=f".{source.stem}__"
     ) as tempfile:
@@ -240,6 +245,8 @@ async def shrink_file(
         )
         result = ShrinkResult(exitcode == 0, source, compressed, tolerance=tolerance)
         await output.finalize(result)
+        if subtasks:
+            subtasks.rm(source.stem)
         return result
 
 
@@ -293,12 +300,18 @@ async def pdfshrink(
         TextColumn("Shrinking PDFs"),
         BarColumn(),
         MofNCompleteColumn(),
-        RenderableExtraColumn("result"),
+        subtasks := SubtasksColumn(),
         transient=True,
     ) as progress:
         progress_task = progress.add_task("Shrinking PDFs...", total=len(sources))
         async for result in map_unordered(
-            partial(shrink_file, tolerance=tolerance, gs=gs, output=output),
+            partial(
+                shrink_file,
+                tolerance=tolerance,
+                gs=gs,
+                output=output,
+                subtasks=subtasks,
+            ),
             sources,
             limit=parallel,
         ):
