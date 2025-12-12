@@ -1,5 +1,8 @@
-from rich.text import Text
+import os
+import shutil
 from collections import Counter
+from pathlib import Path
+from subprocess import run
 from typing import Callable, Optional, Sequence, override
 
 from pzp import pzp
@@ -7,6 +10,7 @@ from rich import get_console
 from rich.console import RenderableType
 from rich.progress import ProgressColumn, Task
 from rich.table import Column, Table
+from rich.text import Text
 
 
 def pzp_table[T](
@@ -40,6 +44,23 @@ def pzp_table[T](
     result_map = dict(zip(lines, items))
     result_line = pzp(lines, header_str="  " + header, fullscreen=False)
     return result_map[result_line]
+
+
+def edit(file: Path) -> int:
+    editor = None
+    for editor in (
+        os.getenv("EDITOR"),
+        os.getenv("VISUAL"),
+        "vi",
+        "nano",
+        "emacs",
+        "notepad",
+    ):
+        if editor is not None and shutil.which(editor):
+            break
+    if editor is None:
+        raise OSError("No editor found.")
+    return run([editor, os.fspath(file)]).returncode
 
 
 class SubtasksColumn(ProgressColumn):
