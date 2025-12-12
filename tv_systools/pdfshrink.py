@@ -1,12 +1,15 @@
+from shutil import which
+from typing import Literal
 import logging
-import shutil
 from dataclasses import dataclass
 from functools import partial
 from os import PathLike, fspath, process_cpu_count
 from pathlib import Path
 from shlex import join
 from tempfile import NamedTemporaryFile
-from typing import Annotated, Optional, assert_never
+from typing import Annotated, Optional
+
+from aioshutil import copy2
 
 from cyclopts import App, Parameter
 from cyclopts.types import PositiveInt
@@ -24,7 +27,6 @@ from rich.progress import (
 from rich.table import Column
 from rich.text import Text
 import rich.traceback
-from typing_extensions import Literal, deprecated
 
 from .util import configure_logging
 
@@ -35,13 +37,13 @@ app = App(help_on_error=True)
 app.register_install_completion_command(add_to_startup=False)
 
 
-def move(what: Path, where: Path):
+async def move(what: Path, where: Path):
     """Tries to move what to where, either directly or by copying and removing"""
     try:
         what.replace(where)
     except OSError as e:
         logging.debug("Failed to move %s to %s, trying copy+delete: %s", what, where, e)
-        shutil.copy2(what, where)
+        await copy2(what, where)
         what.unlink()
 
 
@@ -74,7 +76,7 @@ class OutputOptions:
             self.output.mkdir(parents=True)
         return True
 
-    def do_backup(self, what: Path):
+    async def do_backup(self, what: Path):
         if self.backup:
             if "{}" in self.backup_suffix:
                 target = what.parent / self.backup_suffix.format(what.name)
@@ -82,12 +84,12 @@ class OutputOptions:
                 target = what.with_name(what.name + self.backup_suffix)
         else:
             target = what.with_name(what.name + "~")
-        move(what, target)
+        await move(what, target)
 
-    def finalize(self, result: "ShrinkResult") -> None:
+    async def finalize(self, result: "ShrinkResult") -> None:
         if result.improved and self.output is None:  # overwrite original
-            self.do_backup(result.original)
-            move(result.compressed, result.original)
+            await self.do_backup(result.original)
+            await move(result.compressed, result.original)
         elif result.improved or self.copy_unchanged and self.output is not None:
             assert self.output is not None
             if self.output.is_dir():
@@ -95,9 +97,9 @@ class OutputOptions:
             else:
                 result.output = self.output
             if result.improved:
-                shutil.copy2(result.compressed, result.output)
+                await copy2(result.compressed, result.output)
             else:
-                shutil.copy2(result.original, result.output)
+                await copy2(result.original, result.output)
         # else nothing to do
 
 
@@ -150,11 +152,6 @@ class ShrinkResult:
     def __str__(self) -> str:
         return str(Text.from_markup(self.__rich__()))
 
-    @deprecated("Use OutputOptions.finalize() instead")
-    def finalize(self):
-        if self.improved:
-            move(self.compressed, self.output or self.original)
-
 
 @Parameter("*", group="PDF Options")
 @dataclass(frozen=True)
@@ -183,7 +180,7 @@ class GhostscriptOptions:
         Returns:
             a command line as list of arguments
         """
-        cmd = shutil.which("gs")
+        cmd = which("gs")
         if cmd is None:
             raise FileNotFoundError(
                 "The ghostscript executable (gs) could not be found."
@@ -242,7 +239,7 @@ async def shrink_file(
             stdout_level=logging.DEBUG,
         )
         result = ShrinkResult(exitcode == 0, source, compressed, tolerance=tolerance)
-        output.finalize(result)
+        await output.finalize(result)
         return result
 
 
