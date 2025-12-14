@@ -54,6 +54,7 @@ ta = "tv_systools.tasmota:app"
 git-fix-remotes = "tv_systools.fix_github_remote:app"
 pdfshrink = "tv_systools.pdfshrink:app"
 git-ignore = "tv_systools.git_ignore:app"
+background-labels = "tv_systools.background_labels:app"
 
 [project.optional-dependencies]
 gui = [
