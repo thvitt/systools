@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Desktop Background Labeler
 
@@ -17,9 +16,14 @@ If no arguments provided, processes current directory and saves to 'labeled/' su
 import os
 import sys
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
+
 import exifread
-from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
+
+from cyclopts import App, Parameter
+
+app = App()
+app.register_install_completion_command(add_to_startup=False)
 
 
 def get_image_description(image_path):
@@ -30,7 +34,7 @@ def get_image_description(image_path):
     try:
         # Try to read EXIF data
         with open(image_path, "rb") as f:
-            tags = exifread.process_file(f)
+            tags = exifread.process_file(f, extract_thumbnail=False)
 
         # Look for caption/description in EXIF
         caption_tags = ["Image ImageDescription", "EXIF UserComment", "Image XPComment"]
@@ -246,4 +250,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

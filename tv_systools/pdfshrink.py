@@ -312,7 +312,7 @@ async def pdfshrink(
         BarColumn(),
         MofNCompleteColumn(),
         ImprovementColumn(),
-        subtasks := SubtasksColumn(),
+        subtasks := SubtasksColumn(overflow="ellipsis", no_wrap=True),
         transient=True,
     ) as progress:
         progress_task = progress.add_task("Shrinking PDFs...", total=len(sources))

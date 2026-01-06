@@ -71,9 +71,18 @@ class SubtasksColumn(ProgressColumn):
 
     subtasks: Counter[str]
 
-    def __init__(self, table_column: Optional[Column] = None) -> None:
+    def __init__(self, table_column: Optional[Column] = None, **textargs) -> None:
+        """
+        Prepare a new SubtasksColumn.
+
+        Args:
+            table_column: Progress bar is actually a table, you can define a table column here
+            textargs: Keyword arguments that will be passed to the [Text][rich.text.Text]
+                      used to render the list of running tasks.
+        """
         super().__init__(table_column)
         self.subtasks = Counter()
+        self.textargs = textargs
 
     def add(self, subtask: str) -> None:
         self.subtasks.update((subtask,))
@@ -83,7 +92,7 @@ class SubtasksColumn(ProgressColumn):
 
     @override
     def render(self, task: Task) -> RenderableType:
-        return Text(", ".join(self.subtasks.keys()), overflow="ellipsis")
+        return Text(", ".join(self.subtasks.keys()), **self.textargs)
 
 
 class RenderableExtraColumn(ProgressColumn):

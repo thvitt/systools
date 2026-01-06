@@ -26,11 +26,11 @@ def device_names(config: MutableMapping[str, Any]) -> list[str]:
 
 config  = load_config()
 
-def complete_devices(incomplete: str) -> list[str]:
+def complete_devices(incomplete: str) -> list[tuple[str, str]]:
     """
     Autocomplete function for device names.
     """
-    return [(name, config[name].get('description')) for name in device_names(config) if name.startswith(incomplete.strip())]
+    return [(name, config[name].get('description', '')) for name in device_names(config) if name.startswith(incomplete.strip())]
 
 def complete_commands(ctx: typer.Context, incomplete: str) -> list[str]:
     try:
@@ -38,8 +38,11 @@ def complete_commands(ctx: typer.Context, incomplete: str) -> list[str]:
         if device and device in config:
             commands = config[device].get("commands", {})
             return [cmd for cmd in commands if cmd.startswith(incomplete.strip())]
+        else:
+            return []
     except typer.BadParameter:
         return []
+
 
 def show_device_info():
     table = Table(
@@ -63,7 +66,7 @@ def show_device_info():
             config[name].get('description', ''),
             status)
     get_console().print(table)
-    
+ 
 def format_response(device: str, command: str, response: dict) -> str:
     result_mapping = config[device].get("results", {}).get(command)
     if result_mapping is None:
