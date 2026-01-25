@@ -1,3 +1,4 @@
+from importlib.metadata import Distribution, PackageMetadata
 import shlex
 import shutil
 from textwrap import dedent
@@ -15,6 +16,19 @@ import subprocess
 
 from .util import first
 from .aptutils import Package
+
+
+def resolve_command(command: str) -> list[Path]:
+    result: list[Path] = []
+    path_ = which(command)
+    if path_ is None:
+        raise FileNotFoundError(command)
+    path = Path(path_)
+    result.append(path)
+    while path.is_symlink():
+        path = path.resolve()
+        result.append(path)
+    return result
 
 
 def main():
@@ -73,7 +87,7 @@ def cargo_info(path: Path):
     if ".cargo" not in path.parts:
         return None
     crates2 = load_json(path.parent.parent / ".crates2.json")
-    if crates2 and isinstance(crates2, Mapping):
+    if crates2 and isinstance(crates2, dict):
         for label, data in crates2.get("installs", {}).items():
             if path.name in data.get("bins", []):
                 t = _md_table("Cargo Package")
@@ -93,6 +107,11 @@ def cargo_info(path: Path):
     return f"[red]info for {path.name} not found in {path.parent.parent / '.crates2.json'}[/red]"
 
 
+def python_package_metadata(package: str, venv: Path) -> PackageMetadata:
+    paths = [fspath(p) for p in venv.glob("lib/*/site-packages")]
+    return first(Distribution.discover(name=package, path=paths)).metadata
+
+
 def pipx_info(path: Path):
     if "pipx" not in path.parts:
         return None
@@ -105,7 +124,13 @@ def pipx_info(path: Path):
         t.add_row("Command", path.name)
         t.add_row(
             "Package",
-            f'{metadata["main_package"]["package"]} {metadata["main_package"]["package_version"]} ({metadata["python_version"]}), installed using pipx',
+            f"{metadata['main_package']['package']} {metadata['main_package']['package_version']} ({metadata['python_version']}), installed using pipx",
+        )
+        t.add_row(
+            "Description",
+            python_package_metadata(metadata["main_package"]["package"], venv).get(
+                "Summary"
+            ),
         )
         t.add_row("Virtual Environment", fspath(venv))
         t.add_row("Source", metadata["main_package"]["package_or_url"])
@@ -114,7 +139,7 @@ def pipx_info(path: Path):
             t.add_row(
                 "Injected Packages",
                 " · ".join(
-                    f"{d.get('package_or_url')} ({d.get("package_version")})"
+                    f"{d.get('package_or_url')} ({d.get('package_version')})"
                     for d in metadata["injected_packages"].values()
                 ),
             )
