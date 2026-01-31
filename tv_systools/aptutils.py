@@ -60,19 +60,25 @@ class Package:
     def __rich__(self):
         return self.to_text()
 
+    @property
+    def extradata(self) -> dict[str, object]:
+        return dict(
+            [
+                ("Version", self.version.version),
+                ("Download Size", naturalsize(self.version.size)),
+                ("Installed Size", naturalsize(self.version.installed_size)),
+                ("Maintainer", self.version.record.get("Maintainer", "?")),
+                ("Section", self.version.section),
+                ("Priority", self.version.priority),
+                ("Architecture", self.version.architecture),
+            ]
+        )
+
     def describe(self):
         def field(label, value):
             return f"{label + ':':20}[bold]{value}[/bold]"
 
-        fields = [
-            field("Version", self.version.version),
-            field("Download Size", naturalsize(self.version.size)),
-            field("Installed Size", naturalsize(self.version.installed_size)),
-            field("Maintainer", self.version.record.get("Maintainer", "?")),
-            field("Section", self.version.section),
-            field("Priority", self.version.priority),
-            field("Architecture", self.version.architecture),
-        ]
+        fields = [field(key, value) for key, value in self.extradata.items()]
         related = []
         for relation in self.RELATIONS:
             deps = self.version.get_dependencies(relation)
