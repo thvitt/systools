@@ -2,23 +2,18 @@ from __future__ import annotations
 from abc import abstractmethod, ABC
 from functools import cached_property
 from importlib.metadata import Distribution, PackageMetadata
-import shlex
 import shutil
-from textwrap import dedent
 from os import fspath
 from shutil import which
 from pathlib import Path
 import sys
-from tkinter import Pack
-from typing import Any, ClassVar, Mapping, cast
+from typing import Any, ClassVar, cast
 from rich import print
 import magic
 import json
-from rich.table import Table
-from rich.text import Text
+from rich.table import Column, Table
+from rich.progress import track
 import subprocess
-
-from .util import first
 
 
 def resolve_command(command: str) -> list[Path]:
@@ -109,11 +104,7 @@ class ToolInfo(ABC):
         return table
 
 
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: superwhich <command>")
-        sys.exit(1)
-    command = sys.argv[1]
+def print_detailed_info(command: str) -> None:
     path_ = which(command)
     if path_:
         path = Path(path_)
@@ -129,12 +120,53 @@ def main():
             )
             indent += 1
         print("  " * indent, magic.from_file(path))
-        detail = ToolInfo.create(command, path) or getrel_info(path) or apt_info(path)
+        detail = ToolInfo.create(command, path)
         if detail:
             print(" " * indent, detail)
 
     else:
         print(f"Command '{command}' not found in PATH")
+
+
+def print_command_table(commands: list[str]) -> None:
+    table = Table(
+        Column("Command", style="bold"),
+        "Package",
+        Column("Kind", style="dim"),
+        "Summary",
+        "Path",
+        show_edge=False,
+        box=None,
+        highlight=True,
+    )
+
+    for command_ in track(commands, transient=True):
+        command = Path(command_).name
+        try:
+            path = resolve_command(command_)[-1]
+            if path:
+                info = ToolInfo.create(command, path)
+                if info:
+                    table.add_row(
+                        command, info.package, info.kind, info.summary, str(path)
+                    )
+                else:
+                    table.add_row(command, "", "", "", str(path))
+            else:
+                table.add_row(command, "", "", "", "not found", style="red")
+        except Exception as e:
+            table.add_row(command, "", "", str(e), style="red")
+    print(table)
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: superwhich <command>")
+        sys.exit(1)
+    elif len(sys.argv) == 2:
+        print_detailed_info(sys.argv[1])
+    else:
+        print_command_table(sys.argv[1:])
 
 
 def load_json(json_file: Path) -> None | str | int | float | bool | dict | list:
@@ -243,13 +275,12 @@ class VEnvInfo(ToolInfo):
 
     @cached_property
     def _distribution(self) -> Distribution:
+        cmd = self.path.name
         paths = [fspath(p) for p in self.venv.glob("lib/*/site-packages")]
         for dist in Distribution.discover(path=paths):
-            for _ in dist.entry_points.select(group="console_scripts", name=self.name):
+            for _ in dist.entry_points.select(group="console_scripts", name=cmd):
                 return dist
-        raise ValueError(
-            f"No distribution with script {self.name} found in {self.venv}"
-        )
+        raise ValueError(f"No distribution with script {cmd} found in {self.venv}")
 
     @cached_property
     def package_metadata(self) -> PackageMetadata:
@@ -330,6 +361,8 @@ class Getrel1Info(ToolInfo):
     def _pd(self) -> Path:
         pd = self.path
         while not (pd.joinpath(".getrel")).exists():
+            if pd == pd.parent:
+                raise FileNotFoundError(f"{self.path} has no getrel info")
             pd = pd.parent
         return pd
 
