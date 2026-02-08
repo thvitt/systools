@@ -276,10 +276,15 @@ class VEnvInfo(ToolInfo):
     @cached_property
     def _distribution(self) -> Distribution:
         cmd = self.path.name
-        paths = [fspath(p) for p in self.venv.glob("lib/*/site-packages")]
-        for dist in Distribution.discover(path=paths):
-            for _ in dist.entry_points.select(group="console_scripts", name=cmd):
-                return dist
+        paths = self.venv.glob("lib/*/site-packages")
+        for distpath in paths:
+            for dist in Distribution.discover(path=[fspath(distpath)]):
+                for _ in dist.entry_points.select(group="console_scripts", name=cmd):
+                    return dist
+                # if it’s not a script entry point, it might be a file directly, e.g., from the scripts.
+                for file in dist.files or []:
+                    if distpath.joinpath(file).resolve().samefile(self.path):
+                        return dist
         raise ValueError(f"No distribution with script {cmd} found in {self.venv}")
 
     @cached_property
