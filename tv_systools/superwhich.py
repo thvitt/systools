@@ -2,30 +2,99 @@ from __future__ import annotations
 from abc import abstractmethod, ABC
 from functools import cached_property
 from importlib.metadata import Distribution, PackageMetadata
+from math import isinf
+import os
 import shutil
 from os import fspath
 from shutil import which
 from pathlib import Path
+from stat import filemode
 import sys
-from typing import Any, ClassVar, cast
-from rich import print
+from typing import Any, ClassVar, Iterable, cast
 import magic
 import json
+from rich.console import Console
 from rich.table import Column, Table
 from rich.progress import track
 import subprocess
+
+console = Console()
+print = console.print
+
+
+class CommandNotFoundError(FileNotFoundError):
+    """
+    When a command cannot be resolved, there can be various reasons:
+
+    - There is no file of that name in the $PATH
+    - The file of that name is not executable
+    - Some link in the link chain is broken
+    - Recursive loop in the link chain
+    """
+
+    def __init__(self, command) -> None:
+        non_executable = which(command, mode=0)
+        if non_executable:
+            return super(Exception, self).__init__(
+                f"{non_executable} is not executable"
+            )
+        else:
+            paths = [Path(p) for p in os.getenv("PATH", "").split(os.pathsep)]
+            for path in paths:
+                file = path.joinpath(command)
+                if file.is_symlink():
+                    link, target = self.find_broken_symlink(file)
+                    if isinstance(target, Path):
+                        return super(Exception, self).__init__(
+                            f"Broken link: {link} -> {target}"
+                        )
+                    elif isinstance(target, Iterable):
+                        return super(Exception, self).__init__(
+                            f"Symlink cycle: {' -> '.join(target)}"
+                        )
+                elif file.exists(follow_symlinks=False):
+                    return super(Exception, self).__init__(
+                        f"{file} ({filemode(file.stat().st_mode)}) not a file"
+                    )
+        return super(Exception, self).__init__(f"Command {command} not found.")
+
+    @staticmethod
+    def find_broken_symlink(link: Path, seen: list[Path] | None = None):
+        if seen is None:
+            seen = list()
+        elif link.absolute() in seen:
+            return link, seen
+        else:
+            seen.append(link)
+
+        target = link.readlink()
+        if target.is_symlink():
+            return CommandNotFoundError.find_broken_symlink(target, seen)
+        else:
+            return link, target
+
+
+class SymlinkNotResolvedError(FileNotFoundError):
+    def __init__(self, symlink: Path) -> None:
+        self.symlink = symlink
+        super(Exception, self).__init__(
+            f"Broken symlink: {symlink} -> {symlink.readlink()}"
+        )
 
 
 def resolve_command(command: str) -> list[Path]:
     result: list[Path] = []
     path_ = which(command)
     if path_ is None:
-        raise FileNotFoundError(command)
+        raise CommandNotFoundError(command)
     path = Path(path_)
     result.append(path)
     while path.is_symlink():
-        path = path.resolve()
-        result.append(path)
+        try:
+            path = path.resolve()
+            result.append(path)
+        except FileNotFoundError as e:
+            raise SymlinkNotResolvedError(path) from e
     return result
 
 
@@ -105,27 +174,17 @@ class ToolInfo(ABC):
 
 
 def print_detailed_info(command: str) -> None:
-    path_ = which(command)
-    if path_:
-        path = Path(path_)
-        print(path.absolute())
-        indent = 1
-        while path.is_symlink():
-            path = path.resolve()
-            print(
-                "  " * indent,
-                "→",
-                path.absolute(),
-                "[red]✘[/red]" if not path.exists() else "",
-            )
-            indent += 1
-        print("  " * indent, magic.from_file(path))
-        detail = ToolInfo.create(command, path)
+    print(command)
+    try:
+        paths = resolve_command(command)
+        for indent, path in enumerate(paths):
+            print(" " * indent, "→" if indent else "", path.absolute())
+        print(magic.from_file(paths[-1]), style="dim")
+        detail = ToolInfo.create(command, paths[-1])
         if detail:
-            print(" " * indent, detail)
-
-    else:
-        print(f"Command '{command}' not found in PATH")
+            print(detail)
+    except Exception as e:
+        print(f"[red]{e}[/red]")
 
 
 def print_command_table(commands: list[str]) -> None:
@@ -144,16 +203,19 @@ def print_command_table(commands: list[str]) -> None:
         command = Path(command_).name
         try:
             path = resolve_command(command_)[-1]
-            if path:
-                info = ToolInfo.create(command, path)
-                if info:
-                    table.add_row(
-                        command, info.package, info.kind, info.summary, str(path)
-                    )
+            try:
+                if path:
+                    info = ToolInfo.create(command, path)
+                    if info:
+                        table.add_row(
+                            command, info.package, info.kind, info.summary, str(path)
+                        )
+                    else:
+                        table.add_row(command, "", "", magic.from_file(path), str(path))
                 else:
-                    table.add_row(command, "", "", "", str(path))
-            else:
-                table.add_row(command, "", "", "", "not found", style="red")
+                    table.add_row(command, "", "", "", "command not found", style="red")
+            except Exception as e:
+                table.add_row(command, "", "", str(e), fspath(path), style="red")
         except Exception as e:
             table.add_row(command, "", "", str(e), style="red")
     print(table)
