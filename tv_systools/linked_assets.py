@@ -1,4 +1,4 @@
-from os import PathLike
+from os import PathLike, fspath
 import shutil
 import sys
 import zipfile
@@ -34,7 +34,10 @@ class HtmlSource:
                         except IOError:
                             pass
             except IOError as e:
-                print(f"[yellow]WARNING:[/yellow] Error parsing {path}: {e}", file=sys.stderr)
+                print(
+                    f"[yellow]WARNING:[/yellow] Error parsing {path}: {e}",
+                    file=sys.stderr,
+                )
                 pass  # non-html files are just ignored
 
     def zip(
@@ -73,18 +76,23 @@ class HtmlSource:
                 shutil.copy2(asset, target_path)
 
 
-@app.command("zip")
+@app.command(name="zip")
 def zip_(
-    html_files: Annotated[list[Path], Parameter(validator=validators.Path(exists=True, dir_okay=False))],
-    output: Annotated[ Optional[Path], Parameter(validator=validators.Path(dir_okay=False)) ] = None,
-    stdin: Annotated[ Optional[str], Parameter(alias=["-i"]), ] = None,
-    ignore_missing: Annotated[
-        bool,
-        Parameter(alias=["-m"])
-    ] = False,
+    html_files: Annotated[
+        list[Path], Parameter(validator=validators.Path(exists=True, dir_okay=False))
+    ],
+    /,
+    output: Annotated[
+        Optional[Path], Parameter(alias="-o", validator=validators.Path(dir_okay=False))
+    ] = None,
+    stdin: Annotated[
+        Optional[str],
+        Parameter(alias=["-i"]),
+    ] = None,
+    ignore_missing: Annotated[bool, Parameter(alias=["-m"])] = False,
 ):
     """
-    Creates a ZIP file from the given HTML files and the ressources they need.
+    Create a ZIP file from the given HTML files and the ressources they need.
 
     Args:
         html_files: The HTML files to include in the ZIP file.
@@ -99,11 +107,18 @@ def zip_(
 
 
 @app.command()
-def copy(html_files: list[Path], target: Path):
+def copy(html_files: list[Path], /, target: Path):
+    """
+    Copy the given HTML files together with their assets to the target.
+
+    Args:
+        html_files: The HTML files to copy
+        target: Either a target directory or a target file. The latter works only when there is a single input file.
+    """
     if len(html_files) > 1 and not target.is_dir():
         print(
             f"[red]Error:[/red] When passing multiple input files, the target ({target} must be a directory.",
-            file=sys.stderr
+            file=sys.stderr,
         )
         return 1
     for source in html_files:
