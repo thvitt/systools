@@ -123,3 +123,22 @@ def copy(html_files: list[Path], /, target: Path):
         return 1
     for source in html_files:
         HtmlSource(source).copy(target)
+
+
+@app.default()
+def list_(
+    html_files: list[Path], /, verbose: Annotated[bool, Parameter(alias="-v")] = False
+):
+    """
+    List all assets linked from the given files.
+
+    Args:
+        html_files: The files for which to list the links
+        verbose: If true, also list tag, attribute, and text content of the linking element
+    """
+    for source in html_files:
+        for el, attr, path in HtmlSource(source).find_existing_files():
+            if verbose:
+                print(fspath(path), el.tag, attr, el.text or "", sep="\t")
+            else:
+                print(fspath(path))
