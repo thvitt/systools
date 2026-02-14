@@ -10,6 +10,7 @@ from shutil import which
 from pathlib import Path
 from stat import filemode
 import sys
+import tomllib
 from typing import Any, ClassVar, Iterable, cast
 import magic
 import json
@@ -78,7 +79,7 @@ class SymlinkNotResolvedError(FileNotFoundError):
     def __init__(self, symlink: Path) -> None:
         self.symlink = symlink
         super(Exception, self).__init__(
-            f"Broken symlink: {symlink} -> {symlink.readlink()}"
+            f"Broken symlink:{symlink}->{symlink.readlink()}"
         )
 
 
@@ -183,7 +184,7 @@ def print_detailed_info(command: str) -> None:
         detail = ToolInfo.create(command, paths[-1])
         if detail:
             print(detail)
-    except Exception as e:
+    except OSError as e:
         print(f"[red]{e}[/red]")
 
 
@@ -415,6 +416,70 @@ class PipxInfo(VEnvInfo):
                 for d in metadata["injected_packages"].values()
             )
         return metadata
+
+
+class UvToolInfo(VEnvInfo):
+    kind = "uv tool"
+
+    @property
+    def applicable(self) -> bool:
+        if "uv" in self.path.parts:
+            try:
+                return bool(self.receipt)
+            except OSError:
+                return False
+        return False
+
+    @cached_property
+    def receipt(self) -> dict[str, Any]:
+        path = self.path
+        while path and path != path.parent:
+            tomlpath = path.joinpath("uv-receipt.toml")
+            if tomlpath.exists():
+                with tomlpath.open("rb") as t:
+                    return tomllib.load(t)
+            path = path.parent
+        raise FileNotFoundError(
+            f"uv-receipt.toml not found in a parent dir of {self.path}"
+        )
+
+    @property
+    def extra_bins(self) -> list[str]:
+        return [
+            ep["name"]
+            for ep in self.receipt.get("tool", {}).get("entrypoints", [])
+            if "name" in ep
+        ]
+
+    @property
+    def extra(self) -> dict[str, str]:
+        data = super().extra
+
+        def fmt_entry(entry: Any) -> str:
+            parts = []
+            if isinstance(entry, dict):
+                if "name" in entry:
+                    parts.append(str(entry["name"]))
+                for k, v in entry.items():
+                    if k != "name":
+                        parts.append(f"{k}={v}")
+            elif isinstance(entry, list):
+                parts = [fmt_entry(part) for part in entry]
+            else:
+                return str(entry)
+
+            if any(", " in part for part in parts):
+                return "\n".join(parts)
+            else:
+                return ", ".join(parts)
+
+        for key, value in self.receipt.get("tool", {}).items():
+            if key == "entrypoints":
+                continue
+            if value:
+                data[key] = fmt_entry(value)
+
+        return data
 
 
 class Getrel1Info(ToolInfo):
