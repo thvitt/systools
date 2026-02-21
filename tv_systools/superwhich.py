@@ -1,23 +1,32 @@
 from __future__ import annotations
-from abc import abstractmethod, ABC
-from functools import cached_property
-from importlib.metadata import Distribution, PackageMetadata
-from math import isinf
+
+import json
 import os
 import shutil
-from os import fspath
-from shutil import which
-from pathlib import Path
-from stat import filemode
-import sys
-import tomllib
-from typing import Any, ClassVar, Iterable, cast
-import magic
-import json
-from rich.console import Console
-from rich.table import Column, Table
-from rich.progress import track
 import subprocess
+import tomllib
+from abc import ABC, abstractmethod
+from functools import cached_property
+from importlib.metadata import Distribution, PackageMetadata
+from os import environ, fspath
+from os.path import expanduser
+from pathlib import Path
+from random import sample
+from shutil import which
+from stat import S_IXUSR, filemode
+from typing import Annotated, Any, ClassVar, Iterable, cast
+
+import magic
+from cyclopts import App, Group, Parameter
+from cyclopts.types import PositiveInt
+from cyclopts.validators import mutually_exclusive
+from rich.console import Console
+from rich.progress import track
+from rich.table import Column, Table
+
+app = App()
+app.register_install_completion_command(add_to_startup=False)
+
 
 console = Console()
 print = console.print
@@ -83,7 +92,7 @@ class SymlinkNotResolvedError(FileNotFoundError):
         )
 
 
-def resolve_command(command: str) -> list[Path]:
+def resolve_command(command: str | Path) -> list[Path]:
     result: list[Path] = []
     path_ = which(command)
     if path_ is None:
@@ -174,7 +183,7 @@ class ToolInfo(ABC):
         return table
 
 
-def print_detailed_info(command: str) -> None:
+def print_detailed_info(command: str | Path) -> None:
     print(command)
     try:
         paths = resolve_command(command)
@@ -188,14 +197,15 @@ def print_detailed_info(command: str) -> None:
         print(f"[red]{e}[/red]")
 
 
-def print_command_table(commands: list[str]) -> None:
+def print_command_table(commands: Iterable[str | Path]) -> None:
     table = Table(
         Column("Command", style="bold"),
-        "Package",
+        Column("Package", style="cyan"),
         Column("Kind", style="dim"),
         "Summary",
         "Path",
         show_edge=False,
+        show_header=False,
         box=None,
         highlight=True,
     )
@@ -222,14 +232,90 @@ def print_command_table(commands: list[str]) -> None:
     print(table)
 
 
-def main():
-    if len(sys.argv) < 2:
-        print("Usage: superwhich <command>")
-        sys.exit(1)
-    elif len(sys.argv) == 2:
-        print_detailed_info(sys.argv[1])
+@app.default
+def main(
+    commands: list[str],
+    /,
+    *,
+    detailed: Annotated[
+        bool | None, Parameter(alias="-d", negative=["-t", "--table"])
+    ] = None,
+):
+    """
+    Find the given command or commands in the $PATH, resolve symlinks and show information about them.
+
+    Args:
+        commands: One or more commands. Aliases and shell functions are not recognized.
+        detailed: Show a verbose info block for the given command or a summary table with one line per command. By default, a  summary table will be shown if more than one commands are given.
+    """
+    if detailed is None:
+        detailed = len(commands) == 1
+
+    if detailed:
+        for command in commands:
+            print_detailed_info(command)
     else:
-        print_command_table(sys.argv[1:])
+        print_command_table(commands)
+
+
+def commands_in(paths: list[Path]) -> Iterable[Path]:
+    seen = set()
+    for path in paths:
+        if path.is_dir():
+            for cmd in path.iterdir():
+                if (
+                    cmd.name not in seen
+                    and cmd.is_file()
+                    and cmd.stat().st_mode & S_IXUSR
+                ):
+                    seen.add(cmd)
+                    yield cmd
+
+
+def bin_dirs(only_home: bool = False) -> list[Path]:
+    paths = [Path(expanduser(p)) for p in environ["PATH"].split(os.pathsep)]
+    if only_home:
+        return [p for p in paths if p.is_relative_to(Path.home())]
+    else:
+        return paths
+
+
+display_mode = Group("Display Mode", validator=mutually_exclusive)
+
+
+@app.command(name=["-l", "--list"])
+def list_commands(
+    n: PositiveInt | None = None,
+    /,
+    *,
+    home: Annotated[bool, Parameter(alias="-H")] = False,
+    detailed: Annotated[bool, Parameter(alias="-d")] = False,
+    bare: Annotated[bool, Parameter(alias="-b")] = False,
+):
+    """
+    Lists commands from $PATH.
+
+    By default, a table of all commands on $PATH will be shown.
+
+    Args:
+        n: Number of commands to sample. If missing, list all commands.
+        home: Only look in directories on the $PATH and below $HOME.
+        detailed: Show a detailed info block for each command.
+        bare: Only list the command name, nothing else.
+    """
+    dirs = bin_dirs(home)
+    if n:
+        cmds = sample(list(commands_in(dirs)), n)
+    else:
+        cmds = commands_in(dirs)
+
+    if bare:
+        print(*(cmd.name for cmd in cmds), sep="\n")
+    elif detailed:
+        for cmd in cmds:
+            print_detailed_info(cmd)
+    else:
+        print_command_table(list(cmds))
 
 
 def load_json(json_file: Path) -> None | str | int | float | bool | dict | list:
@@ -568,6 +654,7 @@ class AptInfo(ToolInfo):
     @cached_property
     def _package(self):
         import apt
+
         from .aptutils import Package
 
         cache = apt.Cache()
