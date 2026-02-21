@@ -197,7 +197,7 @@ def print_detailed_info(command: str | Path) -> None:
         print(f"[red]{e}[/red]")
 
 
-def print_command_table(commands: Iterable[str | Path]) -> None:
+def print_command_table(commands: Iterable[str | Path], quiet: bool = False) -> None:
     table = Table(
         Column("Command", style="bold"),
         Column("Package", style="cyan"),
@@ -205,12 +205,12 @@ def print_command_table(commands: Iterable[str | Path]) -> None:
         "Summary",
         "Path",
         show_edge=False,
-        show_header=False,
+        show_header=not quiet,
         box=None,
         highlight=True,
     )
 
-    for command_ in track(commands, transient=True):
+    for command_ in track(commands, transient=True, disable=quiet):
         command = Path(command_).name
         try:
             path = resolve_command(command_)[-1]
@@ -229,7 +229,7 @@ def print_command_table(commands: Iterable[str | Path]) -> None:
                 table.add_row(command, "", "", str(e), fspath(path), style="red")
         except Exception as e:
             table.add_row(command, "", "", str(e), style="red")
-    print(table)
+    print("\r", table, sep="")
 
 
 @app.default
@@ -291,6 +291,7 @@ def list_commands(
     home: Annotated[bool, Parameter(alias="-H")] = False,
     detailed: Annotated[bool, Parameter(alias="-d")] = False,
     bare: Annotated[bool, Parameter(alias="-b")] = False,
+    quiet: Annotated[bool, Parameter(alias="-q")] = False,
 ):
     """
     Lists commands from $PATH.
@@ -302,6 +303,7 @@ def list_commands(
         home: Only look in directories on the $PATH and below $HOME.
         detailed: Show a detailed info block for each command.
         bare: Only list the command name, nothing else.
+        quiet: Do not show progress bar or headers.
     """
     dirs = bin_dirs(home)
     if n:
@@ -315,7 +317,7 @@ def list_commands(
         for cmd in cmds:
             print_detailed_info(cmd)
     else:
-        print_command_table(list(cmds))
+        print_command_table(list(cmds), quiet=quiet)
 
 
 def load_json(json_file: Path) -> None | str | int | float | bool | dict | list:
