@@ -14,7 +14,7 @@ from pathlib import Path
 from random import sample
 from shutil import which
 from stat import S_IXUSR, filemode
-from typing import Annotated, Any, ClassVar, Iterable, cast
+from typing import Annotated, Any, Callable, ClassVar, Iterable, Never, cast
 
 import magic
 from cyclopts import App, Group, Parameter
@@ -30,6 +30,7 @@ app.register_install_completion_command(add_to_startup=False)
 
 console = Console()
 print = console.print
+err = Console(stderr=True).print
 
 
 class CommandNotFoundError(FileNotFoundError):
@@ -42,31 +43,30 @@ class CommandNotFoundError(FileNotFoundError):
     - Recursive loop in the link chain
     """
 
-    def __init__(self, command) -> None:
+    def __init__(self, command: str | Path, reason: str = "") -> None:
+        self.command = command
+        if not reason:
+            reason = f"{command} not found"
+        super(Exception, self).__init__(reason)
+
+    @classmethod
+    def raise_appropriately(cls, command: str | Path) -> Never:
         non_executable = which(command, mode=0)
         if non_executable:
-            return super(Exception, self).__init__(
-                f"{non_executable} is not executable"
-            )
+            raise NotExecutableError(command, Path(non_executable))
         else:
             paths = [Path(p) for p in os.getenv("PATH", "").split(os.pathsep)]
             for path in paths:
                 file = path.joinpath(command)
                 if file.is_symlink():
-                    link, target = self.find_broken_symlink(file)
+                    link, target = cls.find_broken_symlink(file)
                     if isinstance(target, Path):
-                        return super(Exception, self).__init__(
-                            f"Broken link: {link} -> {target}"
-                        )
+                        raise SymlinkNotResolvedError(command, link, target)
                     elif isinstance(target, Iterable):
-                        return super(Exception, self).__init__(
-                            f"Symlink cycle: {' -> '.join(target)}"
-                        )
+                        raise SymlinkCycleError(command, link, target)
                 elif file.exists(follow_symlinks=False):
-                    return super(Exception, self).__init__(
-                        f"{file} ({filemode(file.stat().st_mode)}) not a file"
-                    )
-        return super(Exception, self).__init__(f"Command {command} not found.")
+                    NotAFileError(command, file)
+        raise CommandNotFoundError(command)
 
     @staticmethod
     def find_broken_symlink(link: Path, seen: list[Path] | None = None):
@@ -84,27 +84,56 @@ class CommandNotFoundError(FileNotFoundError):
             return link, target
 
 
-class SymlinkNotResolvedError(FileNotFoundError):
-    def __init__(self, symlink: Path) -> None:
-        self.symlink = symlink
-        super(Exception, self).__init__(
-            f"Broken symlink:{symlink}->{symlink.readlink()}"
+class SymlinkNotResolvedError(CommandNotFoundError):
+    def __init__(self, command: str | Path, symlink: Path, target: Path) -> None:
+        self.symlink = self.path = symlink
+        self.target = target
+        super().__init__(command, f"Broken symlink:{symlink}->{target}")
+
+
+class SymlinkCycleError(SymlinkNotResolvedError):
+    def __init__(
+        self, command: str | Path, symlink: Path, cycle: Iterable[Path]
+    ) -> None:
+        self.symlink = self.path = symlink
+        self.cycle = list(cycle)
+        self.target = self.cycle[-1]
+        super(CommandNotFoundError, self).__init__(
+            command,
+            symlink,
+            f"{symlink} leads to a symlink cycle: {'->'.join(map(str, self.cycle))}",
+        )
+
+
+class NotAFileError(CommandNotFoundError):
+    def __init__(self, command: str | Path, path: Path):
+        self.path = path
+        super().__init__(
+            command, f"{path} is not a file ({filemode(path.stat().st_mode)})"
+        )
+
+
+class NotExecutableError(CommandNotFoundError):
+    def __init__(self, command: str | Path, path: Path) -> None:
+        self.path = path
+        super().__init__(
+            command, f"{path} is not executable ({filemode(path.stat().st_mode)})"
         )
 
 
 def resolve_command(command: str | Path) -> list[Path]:
     result: list[Path] = []
-    path_ = which(command)
-    if path_ is None:
-        raise CommandNotFoundError(command)
-    path = Path(path_)
+    which_result = which(command)
+    if which_result is None:
+        CommandNotFoundError.raise_appropriately(command)
+    path = Path(which_result)
     result.append(path)
     while path.is_symlink():
         try:
-            path = path.resolve()
+            path = path.resolve(strict=True)
             result.append(path)
-        except FileNotFoundError as e:
-            raise SymlinkNotResolvedError(path) from e
+        except FileNotFoundError:
+            CommandNotFoundError.raise_appropriately(command)
     return result
 
 
@@ -258,15 +287,15 @@ def main(
         print_command_table(commands)
 
 
-def commands_in(paths: list[Path]) -> Iterable[Path]:
+def commands_in(paths: list[Path], include_broken=False) -> Iterable[Path]:
     seen = set()
     for path in paths:
         if path.is_dir():
             for cmd in path.iterdir():
                 if (
                     cmd.name not in seen
-                    and cmd.is_file()
-                    and cmd.stat().st_mode & S_IXUSR
+                    and include_broken
+                    or (cmd.is_file() and cmd.stat().st_mode & S_IXUSR)
                 ):
                     seen.add(cmd)
                     yield cmd
@@ -290,7 +319,7 @@ def list_commands(
     *,
     home: Annotated[bool, Parameter(alias="-H")] = False,
     detailed: Annotated[bool, Parameter(alias="-d")] = False,
-    bare: Annotated[bool, Parameter(alias="-b")] = False,
+    bare: Annotated[bool, Parameter(alias="-1")] = False,
     quiet: Annotated[bool, Parameter(alias="-q")] = False,
 ):
     """
@@ -318,6 +347,61 @@ def list_commands(
             print_detailed_info(cmd)
     else:
         print_command_table(list(cmds), quiet=quiet)
+
+
+def split_by[T](
+    what: Iterable[T], by: Callable[[T], bool] = bool
+) -> tuple[list[T], list[T]]:
+    """
+    Sort out an iterable's items by a predicate.
+
+    Returns:
+        a tuple of two lists: the first contains those items of _what_ for which _by_ returns True, the second the others.
+    """
+    true: list[T] = []
+    false: list[T] = []
+    for item in what:
+        if by(item):
+            true.append(item)
+        else:
+            false.append(item)
+    return true, false
+
+
+@app.command(name=["-b", "--broken-links"])
+def list_broken_links(
+    files_or_dirs: list[Path] | None = None,
+    /,
+    home: Annotated[bool, Parameter(alias="-H")] = False,
+    bare: Annotated[bool, Parameter(alias="-1")] = False,
+):
+    """
+    List broken links on the Path or in the files.
+
+    Args:
+        cmds_or_dirs: either files or directories to check. If directories, we look at all files within. If missing, look at all commands in $PATH.
+        home: look at all directories on $PATH which are in the user's home directory.
+        bare: if present, only list the broken link, otherwise also the link target is shown.
+    """
+    if files_or_dirs is not None:
+        dirs, files = split_by(files_or_dirs, lambda p: p.is_dir(follow_symlinks=False))
+        files.extend(
+            f for d in dirs for f in d.iterdir() if not f.is_dir(follow_symlinks=False)
+        )
+    else:
+        files = commands_in(bin_dirs(home), include_broken=True)
+    for file in files:
+        try:
+            resolved = resolve_command(file)
+            if not resolved:
+                CommandNotFoundError.raise_appropriately(file)
+        except SymlinkNotResolvedError as e:
+            if bare:
+                print(e.symlink)
+            else:
+                print(e.symlink, e.target, file, sep="\t")
+        except CommandNotFoundError as e:
+            err(e, style="red")
 
 
 def load_json(json_file: Path) -> None | str | int | float | bool | dict | list:
