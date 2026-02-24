@@ -59,6 +59,7 @@ pdfshrink = "tv_systools.pdfshrink:app"
 git-ignore = "tv_systools.git_ignore:app"
 background-labels = "tv_systools.background_labels:app"
 killbyload = "tv_systools.killbyload:app"
+uniqall = "tv_systools.uniqall:app"
 
 [project.optional-dependencies]
 gui = [
