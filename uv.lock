@@ -1273,6 +1273,7 @@ requires-dist = [
     { name = "readchar", marker = "extra == 'gui'", specifier = ">=4.0.5" },
     { name = "rich", specifier = ">=13.7.0" },
     { name = "ruyaml", specifier = ">=0.91.0" },
+    { name = "systemd-python", specifier = ">=235" },
     { name = "systemd-python", marker = "extra == 'gui'", specifier = ">=235" },
     { name = "toml", specifier = ">=0.10.2" },
     { name = "tomlkit", specifier = ">=0.13.3" },

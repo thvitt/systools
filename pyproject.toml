@@ -30,6 +30,7 @@ dependencies = [
   "pillow>=12.1.0",
   "exifread>=3.5.1",
   "psutil>=7.1.3",
+  "systemd-python>=235",
 ]
 requires-python = ">=3.13"
 readme = "README.md"
