@@ -7,8 +7,13 @@ from cyclopts import App, Parameter
 from cyclopts.validators import Number
 import xdg.BaseDirectory
 from base64 import urlsafe_b64encode
+import logging
+
+from tv_systools.util import configure_logging2
+
 
 app = App()
+logger = logging.getLogger(__name__)
 
 
 class ProcessCache:
@@ -55,7 +60,7 @@ class ProcessCache:
             with self._cache_file(self.patterns).open("wb") as f:
                 pickle.dump(self, f)
         else:
-            self._cache_file(self.patterns).unlink(missing_ok=False)
+            self._cache_file(self.patterns).unlink(missing_ok=True)
 
 
 def matching_processes(patterns: Iterable[str]) -> list[psutil.Process]:
@@ -96,11 +101,16 @@ def kill_by_load(
         kill: if true, send a SIGKILL to processes not terminating after SIGTERM.
         simulate: Don't actually kill processes, just print what is done.
     """
+    configure_logging2(verbosity=1, loud_core_loggers=[__name__])
     matching = matching_processes(patterns)
 
     if matching:
-        print(
-            f"Sampling {len(matching)} matching processes ({' '.join(p.name() for p in matching)}) for {sample_seconds} seconds …"
+        logger.info(
+            "Sampling %d processes (%s) matching %s for {%f} seconds …",
+            len(matching),
+            " ".join(p.name() for p in matching),
+            "|".join(patterns),
+            sample_seconds,
         )
         sleep(sample_seconds)
         high_load = [
@@ -110,17 +120,30 @@ def kill_by_load(
             cache = ProcessCache.load(patterns)
             to_terminate = cache.update(high_load)
             cache.save()
+            logger.info(
+                "%d processes have load >= %d, of which %d have been problematic %d times or more",
+                len(high_load),
+                threshold,
+                len(to_terminate),
+                count,
+            )
         else:
             to_terminate = high_load
+            logger.info("%d processes have load >= %d", len(to_terminate), threshold)
 
+        simulating_ = "(simulating only)" if simulate else ""
         for process in to_terminate:
-            process.terminate() if not simulate else print(
-                "Simulating: Terminating", process
-            )
+            logger.info("Terminating %s %s", process, simulating_)
+            if not simulate:
+                process.terminate()
         if kill:
             sleep(1)
             for process in to_terminate:
                 if process.is_running():
-                    process.kill() if not simulate else print(
-                        "Simulating: Killing", process
+                    logger.warning(
+                        "%s did not terminate on SIGTERM, killing it %s",
+                        process,
+                        simulating_,
                     )
+                    if not simulate:
+                        process.kill()
