@@ -451,6 +451,29 @@ wheels = [
 ]
 
 [[package]]
+name = "icukit"
+version = "0.1.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "icukit-pyicu" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d3/33/a9e1d1f8fb657e54e156b534f0b1e418d76d959411d99f2784c511299ac2/icukit-0.1.2.tar.gz", hash = "sha256:7977556b621e424b93f770171f324253ef253b70af287949696da623267d730f", size = 144403, upload-time = "2026-01-20T00:15:07.013Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/50/2e/3e3b40eaf46779c1e621b61ea0aa1a7dac1352a8f5d6bffb3f8f52cbfd61/icukit-0.1.2-py3-none-any.whl", hash = "sha256:d27a1402958bb7d30d6881c671a073a813548c8db4246de55b10dd885ce82c90", size = 141005, upload-time = "2026-01-20T00:15:05.18Z" },
+]
+
+[[package]]
+name = "icukit-pyicu"
+version = "78.2.1"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2e/b3/1e56dd2e44c16f78efda4ef104a1187dd484e3c32583348f197b07f206de/icukit_pyicu-78.2.1-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:28768307f775a85e1b806e84d1acff39adea3eec4adb572ae1ecc6e0ffd73c93", size = 78971654, upload-time = "2026-01-19T23:36:27.4Z" },
+    { url = "https://files.pythonhosted.org/packages/56/53/ecc7ee1b3f1c3a30f95cb5b53c0b8e59112e3d46ca0115faf59b6b1e33c4/icukit_pyicu-78.2.1-cp313-cp313-manylinux_2_35_x86_64.whl", hash = "sha256:b4a1357fd3be8510b5c5e4510fa2ee700eda25a3ea78f47850dd957102eb8941", size = 81325951, upload-time = "2026-01-19T23:36:32.871Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/bb/e80ad3dc4ce90f6ba328f710d1987120adba1439af274557c613ae3bc28f/icukit_pyicu-78.2.1-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:a5f55d7a766ed261b983b815fe0893e3c32856672935645f1a06a4ad062c4f3d", size = 78969976, upload-time = "2026-01-19T23:36:38.382Z" },
+    { url = "https://files.pythonhosted.org/packages/c6/03/bc84f02c888354b6ba4e542b1dee02adba8c25117c39a0f4111627cdc5d2/icukit_pyicu-78.2.1-cp314-cp314-manylinux_2_35_x86_64.whl", hash = "sha256:d3b0b1c66feee44c2841791a5f636275b4c58be7687599b234d300230df2f9bc", size = 81322381, upload-time = "2026-01-19T23:36:45.035Z" },
+]
+
+[[package]]
 name = "idna"
 version = "3.11"
 source = { registry = "https://pypi.org/simple" }
@@ -1202,6 +1225,7 @@ dependencies = [
     { name = "exifread" },
     { name = "httpx" },
     { name = "humanize" },
+    { name = "icukit" },
     { name = "logproc" },
     { name = "lxml" },
     { name = "notify2" },
@@ -1218,6 +1242,7 @@ dependencies = [
     { name = "questionary" },
     { name = "rich" },
     { name = "ruyaml" },
+    { name = "systemd-python" },
     { name = "toml" },
     { name = "tomlkit" },
     { name = "tqdm" },
@@ -1252,6 +1277,7 @@ requires-dist = [
     { name = "exifread", specifier = ">=3.5.1" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "humanize", specifier = ">=4.11.0" },
+    { name = "icukit", specifier = ">=0.1.2" },
     { name = "logproc", specifier = ">=0.2.0" },
     { name = "logproc", specifier = ">=0.3.0" },
     { name = "lxml", specifier = ">=5.3.1" },
