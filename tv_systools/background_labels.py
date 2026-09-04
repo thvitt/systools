@@ -14,19 +14,19 @@ If no arguments provided, processes current directory and saves to 'labeled/' su
 """
 
 import os
-import sys
 from pathlib import Path
 
 import exifread
+from cyclopts import App
+from cyclopts.types import Directory, ExistingDirectory, ExistingImagePath, ImagePath
 from PIL import Image, ImageDraw, ImageFont
-
-from cyclopts import App, Parameter
 
 app = App()
 app.register_install_completion_command(add_to_startup=False)
 
 
-def get_image_description(image_path):
+@app.command(name=["-d", "--describe"])
+def get_image_description(image_path: ExistingImagePath):
     """
     Extract description from image metadata or filename.
     Priority: EXIF caption -> XMP subject -> filename (up to first dot)
@@ -43,7 +43,7 @@ def get_image_description(image_path):
             if tag in tags and str(tags[tag]).strip():
                 return str(tags[tag]).strip()
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Warning: Could not read EXIF from {image_path}: {e}")
 
     # Try XMP data using PIL
@@ -55,7 +55,7 @@ def get_image_description(image_path):
                 if xmp_data and "dc:subject" in str(xmp_data):
                     # Simple extraction - in production you'd use proper XMP parser
                     pass
-    except Exception:
+    except Exception:  # noqa: BLE001, S110   -- see fallback below
         pass
 
     # Fallback to filename (up to first dot)
@@ -105,8 +105,18 @@ def get_optimal_font_size(text, safe_width, safe_height):
     return max(24, min(base_size, 72))  # Clamp between 24 and 72
 
 
-def add_text_to_image(image_path, output_path, description):
-    """Add description text to image with proper positioning for 16:9 compatibility."""
+@app.command(name=["-1", "--single"])
+def add_text_to_image(
+    image_path: ExistingImagePath, output_path: ImagePath, description: str
+):
+    """
+    Add description text to a single image with proper positioning for 16:9 compatibility.
+
+    Args:
+        image_path: The raw image to label.
+        output_path: output image file to write to
+        description: the text to imprint on the label
+    """
 
     with Image.open(image_path) as img:
         # Convert to RGB if necessary
@@ -139,7 +149,7 @@ def add_text_to_image(image_path, output_path, description):
 
             if font is None:
                 font = ImageFont.load_default()
-        except Exception:
+        except Exception:  # noqa: BLE001
             font = ImageFont.load_default()
 
         # Calculate text dimensions
@@ -183,21 +193,28 @@ def add_text_to_image(image_path, output_path, description):
         print(f"  Description: {description}")
 
 
-def process_images(input_dir, output_dir):
-    """Process all JPEG images in input directory."""
+@app.default
+def process_images(
+    input_dir: ExistingDirectory = Path(), output_dir: Directory = Path("labeled"), /
+):
+    """
+    Add descriptive text labels to JPEG images for use as desktop backgrounds.
+    The text is positioned to remain visible even when the image is cropped to fit a 16:9 screen.
 
-    input_path = Path(input_dir)
-    output_path = Path(output_dir)
+    Args:
+        input_dir: process all images from this directory
+        output_dir: labeled images will be placed in this directory. Will be created if it doesn't exist.
+    """
 
     # Create output directory
-    output_path.mkdir(exist_ok=True)
+    output_dir.mkdir(exist_ok=True)
 
     # Find all JPEG files
     jpeg_extensions = {".jpg", ".jpeg", ".JPG", ".JPEG"}
     jpeg_files = []
 
     for ext in jpeg_extensions:
-        jpeg_files.extend(input_path.glob(f"*{ext}"))
+        jpeg_files.extend(input_dir.glob(f"*{ext}"))
 
     if not jpeg_files:
         print(f"No JPEG files found in {input_dir}")
@@ -213,40 +230,16 @@ def process_images(input_dir, output_dir):
             description = get_image_description(image_file)
 
             # Create output filename
-            output_file = output_path / f"labeled_{image_file.name}"
+            output_file = output_dir / f"labeled_{image_file.name}"
 
             # Process image
             add_text_to_image(image_file, output_file, description)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Error processing {image_file.name}: {e}")
 
     print(f"\nProcessing complete! Labeled images saved to: {output_dir}")
 
 
-def main():
-    if len(sys.argv) == 1:
-        # No arguments - use current directory
-        input_dir = "."
-        output_dir = "labeled"
-    elif len(sys.argv) == 2:
-        # One argument - input directory, output to labeled subdirectory
-        input_dir = sys.argv[1]
-        output_dir = os.path.join(input_dir, "labeled")
-    elif len(sys.argv) == 3:
-        # Two arguments - input and output directories
-        input_dir = sys.argv[1]
-        output_dir = sys.argv[2]
-    else:
-        print("Usage: python add_background_labels.py [input_dir] [output_dir]")
-        sys.exit(1)
-
-    if not os.path.exists(input_dir):
-        print(f"Error: Input directory '{input_dir}' does not exist")
-        sys.exit(1)
-
-    process_images(input_dir, output_dir)
-
-
 if __name__ == "__main__":
-    main()
+    app()
