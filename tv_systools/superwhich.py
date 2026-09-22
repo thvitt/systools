@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from multiprocessing import Pool
 import os
 import shutil
 import subprocess
@@ -24,9 +25,8 @@ from rich.console import Console
 from rich.progress import track
 from rich.table import Column, Table
 
-app = App()
+app = App(verbose=True, print_error=True)
 app.register_install_completion_command(add_to_startup=False)
-
 
 console = Console()
 print = console.print
@@ -64,8 +64,10 @@ class CommandNotFoundError(FileNotFoundError):
                         raise SymlinkNotResolvedError(command, link, target)
                     elif isinstance(target, Iterable):
                         raise SymlinkCycleError(command, link, target)
-                elif file.exists(follow_symlinks=False):
-                    NotAFileError(command, file)
+                elif file.exists(follow_symlinks=False) and not file.is_file(
+                    follow_symlinks=False
+                ):
+                    raise NotAFileError(command, file)
         raise CommandNotFoundError(command)
 
     @staticmethod
@@ -121,6 +123,7 @@ class NotExecutableError(CommandNotFoundError):
         )
 
 
+@app.command(name=["-r", "--resolve"])
 def resolve_command(command: str | Path) -> list[Path]:
     result: list[Path] = []
     which_result = which(command)
@@ -213,7 +216,6 @@ class ToolInfo(ABC):
 
 
 def print_detailed_info(command: str | Path) -> None:
-    print(command)
     try:
         paths = resolve_command(command)
         for indent, path in enumerate(paths):
@@ -224,6 +226,14 @@ def print_detailed_info(command: str | Path) -> None:
             print(detail)
     except OSError as e:
         print(f"[red]{e}[/red]")
+
+
+def _resolve_command(
+    command: str | Path,
+) -> tuple[str | Path, Path | None, ToolInfo | None]:
+    path = resolve_command(command)[-1]
+    info = ToolInfo.create(command, path) if path else None
+    return command, path, info
 
 
 def print_command_table(commands: Iterable[str | Path], quiet: bool = False) -> None:
@@ -239,13 +249,17 @@ def print_command_table(commands: Iterable[str | Path], quiet: bool = False) -> 
         highlight=True,
     )
 
-    for command_ in track(commands, transient=True, disable=quiet):
+    pool = Pool(20)
+    for command_, path, info in track(
+        pool.map(_resolve_command, commands, 10),
+        total=len(commands),
+        transient=True,
+        disable=quiet,
+    ):
         command = Path(command_).name
         try:
-            path = resolve_command(command_)[-1]
             try:
                 if path:
-                    info = ToolInfo.create(command, path)
                     if info:
                         table.add_row(
                             command, info.package, info.kind, info.summary, str(path)
