@@ -61,6 +61,7 @@ background-labels = "tv_systools.background_labels:app"
 killbyload = "tv_systools.killbyload:app"
 uniqall = "tv_systools.uniqall:app"
 fix-filename-encoding = "tv_systools:fix_filename_encoding.app"
+webloc = "tv_systools.webloc:app"
 
 [project.optional-dependencies]
 gui = [
