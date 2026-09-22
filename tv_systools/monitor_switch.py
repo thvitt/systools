@@ -143,6 +143,23 @@ class Output:
         else:
             return ""
 
+    @property
+    def sysfs(self) -> Path:
+        root = Path("/sys/class/drm")
+        try:
+            candidates = root.glob("*-" + self.name)
+            return next(iter(candidates))
+        except StopIteration:
+            try:
+                candidates = root.glob("*-" + self.name[: self.name.rindex("-")])
+                return next(iter(candidates))
+            except StopIteration:
+                raise FileNotFoundError(f"No DPMS file for {self.name}")
+
+    @property
+    def dpms(self) -> str:
+        return self.sysfs.joinpath("dpms").read_text().strip()
+
     def __str__(self) -> str:
         result = f"{self.icon}  {self.name}"
         if self.width:
@@ -351,13 +368,20 @@ class ResetOption:
             for output in relevant_outputs:
                 off_cmd.extend(["--output", output.name, "--off"])
             run(off_cmd)
-            sleep(5)
+            while any(output.dpms == "On" for output in relevant_outputs):
+                sleep(0.5)
             xrandr_option = XRandrOption.suggested()[0]
             notification.show(
                 body=f"Applying new configuration {xrandr_option.label}", progress=40
             )
             xrandr_option.activate()
-            sleep(5)
+            max_delay = 30  # seconds
+            step_size = 0.25
+            while max_delay > 0 and any(
+                output.dpms != "On" for output in relevant_outputs
+            ):
+                sleep(step_size)
+                max_delay -= step_size
             notification.show(body="Reloading qtile configuration", progress=60)
             run(["qtile", "cmd-obj", "-o", "root", "-f", "reload_config"])
 
@@ -365,9 +389,19 @@ class ResetOption:
             # run(["systemctl", "--user", "start", "picom"])
             run(["picom", "-b"])
         notification.show(body="Restarting qtile", progress=90)
-        run(["qtile", "cmd-obj", "-o", "root", "-f", "restart"])
-        sleep(1)
-        notification.show(body="The screens should be fine now.", progress=100)
+        if max_delay:
+            run(["qtile", "cmd-obj", "-o", "root", "-f", "restart"])
+            sleep(1)
+            notification.show(body="The screens should be fine now.", progress=100)
+        else:
+            notification.show(
+                body="💣 Failed to reset screens:\n"
+                + "\n".join(
+                    f"{output}	{output.dpms}" for output in relevant_outputs
+                ),
+                progress=100,
+                icon="error",
+            )
 
     def to_pango(self):
         return '💊 \t<b><span fgcolor="red">reset display setup</span></b>\t<span fgcolor="gray">Try to re-initialize the configuration</span>'
