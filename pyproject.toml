@@ -62,6 +62,7 @@ killbyload = "tv_systools.killbyload:app"
 uniqall = "tv_systools.uniqall:app"
 fix-filename-encoding = "tv_systools:fix_filename_encoding.app"
 webloc = "tv_systools.webloc:app"
+data-url = "tv_systools.dataurl:app"
 
 [project.optional-dependencies]
 gui = [
