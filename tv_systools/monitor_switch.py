@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from enum import Enum
+from functools import lru_cache
 from pathlib import Path
 from subprocess import run
 from dataclasses import dataclass
@@ -16,6 +17,7 @@ output_re = re.compile(
     r"^(?P<output>\S+) (?P<connected>connected|disconnected) (?P<primary>primary *)?(?:(?P<width>\d+)x(?P<height>\d+)\+(?P<x>\d+)\+(?P<y>\d+))?.*?(?:(?P<physx>\d+)mm x (?P<physy>\d+)mm)?$"
 )
 mode_re = re.compile(r"^\s+(?P<width>\d+)x(?P<height>\d+)")
+connector_re = re.compile(r"CONNECTOR_ID: (\d+)")
 
 
 class Relation(Enum):
@@ -100,6 +102,13 @@ class Mode:
         return result
 
 
+@lru_cache
+def connector_path(id) -> Path | None:
+    for id_file in Path("/sys/class/drm").glob("*/connector_id"):
+        if id_file.read_text().strip() == id:
+            return id_file.parent
+
+
 class Output:
     modes: list[Mode]
 
@@ -127,6 +136,7 @@ class Output:
         self.physx = int(physx) if physx else None
         self.physy = int(physy) if physy else None
         self.modes = []
+        self.connector: str | None = None
 
     @property
     def on(self) -> bool:
@@ -144,26 +154,33 @@ class Output:
             return ""
 
     @property
-    def sysfs(self) -> Path:
+    def sysfs(self) -> Path | None:
         root = Path("/sys/class/drm")
+        if self.connector:
+            return connector_path(self.connector)
         try:
             candidates = root.glob("*-" + self.name)
             return next(iter(candidates))
         except StopIteration:
-            try:
-                candidates = root.glob("*-" + self.name[: self.name.rindex("-")])
-                return next(iter(candidates))
-            except StopIteration:
-                raise FileNotFoundError(f"No DPMS file for {self.name}")
+            pass
+        try:
+            candidates = root.glob("*-" + self.name[: self.name.rindex("-")])
+            return next(iter(candidates))
+        except StopIteration:
+            return None
 
     @property
     def dpms(self) -> str:
-        return self.sysfs.joinpath("dpms").read_text().strip()
+        if self.sysfs:
+            return self.sysfs.joinpath("dpms").read_text().strip()
+        else:
+            raise FileNotFoundError(f"sysfs entry for {self.name} not found")
 
     def __str__(self) -> str:
         result = f"{self.icon}  {self.name}"
         if self.width:
             result += f" ({self.width}x{self.height})"
+        result += f"\t🔌 {self.connector} {self.sysfs}"
         return result
 
     def matching_mode(self, other, *, square=False):
@@ -334,6 +351,10 @@ class Notification:
 
 class ResetOption:
     def activate(self):
+        if recover := shutil.which("recover-screens"):
+            run([recover])
+            return
+
         notification = Notification(
             "Resetting display configuration",
             "This will take a few seconds.",
@@ -519,7 +540,13 @@ class AutorandrOption:
 
 
 def xrandr_config() -> list[Output]:
-    proc = run("xrandr --query", capture_output=True, text=True, shell=True, check=True)
+    proc = run(
+        "xrandr --query --verbose",
+        capture_output=True,
+        text=True,
+        shell=True,
+        check=True,
+    )
     output = None
     outputs = []
     for line in proc.stdout.splitlines():
@@ -535,6 +562,8 @@ def xrandr_config() -> list[Output]:
                 output,
             )
             output.modes.append(mode)
+        elif (connector_match := connector_re.search(line)) and output is not None:
+            output.connector = connector_match.group(1)
 
     return outputs
 
