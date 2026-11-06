@@ -1,6 +1,6 @@
 [project]
 name = "tv-systools"
-version = "0.6.11"
+version = "0.7.0"
 description = "Collection of system-related small tools"
 authors = [{ name = "Thorsten Vitt", email = "thorsten.vitt@uni-wuerzburg.de" }]
 dependencies = [
@@ -56,7 +56,7 @@ nstotop = "tv_systools.nstotop:app"
 ta = "tv_systools.tasmota:app"
 git-fix-remotes = "tv_systools.fix_github_remote:app"
 pdfshrink = "tv_systools.pdfshrink:app"
-git-ignore = "tv_systools.git_ignore:app"
+git-ignore = "tv_systools.git_ignore:app.meta"
 background-labels = "tv_systools.background_labels:app"
 killbyload = "tv_systools.killbyload:app"
 uniqall = "tv_systools.uniqall:app"

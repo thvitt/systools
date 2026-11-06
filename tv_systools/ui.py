@@ -1,9 +1,10 @@
 import os
 import shutil
 from collections import Counter
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from subprocess import run
-from typing import Callable, Optional, Sequence, override
+from typing import Optional, override
 
 from pzp import pzp
 from rich import get_console

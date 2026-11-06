@@ -2,23 +2,20 @@ import logging
 import subprocess
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Annotated
 
 import httpx
-from cyclopts import App
+from cyclopts import App, Parameter
 from pzp import pzp
 from rich.logging import RichHandler
 
 from tv_systools.ui import edit
+from tv_systools.util import configure_logging
 
 app = App()
 app.register_install_completion_command(add_to_startup=False)
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.INFO,
-    handlers=[RichHandler(show_time=False, show_path=False, rich_tracebacks=True)],
-    format="%(message)s",
-)
 
 
 @app.command(name=["-f", "--find"])
@@ -117,6 +114,7 @@ def git_ignore(patterns: Sequence[str] = (), /):
     Add patterns to the .gitignore file.
     """
     if patterns:
+        logger.debug("Found patterns: %s", patterns)
         gitignore_file = find_gitignore()
         lines = gitignore_file.read_text().splitlines()
 
@@ -129,7 +127,24 @@ def git_ignore(patterns: Sequence[str] = (), /):
             ):
                 new_pattern = "/" + str(path.relative_to(gitignore_file.parent))
                 lines.append(new_pattern)
+                logger.info("Added pattern %s (from %s)", new_pattern, pattern)
             else:
                 lines.append(pattern)
+                logger.info("Added pattern %s", pattern)
+        gitignore_file.write_text("\n".join(lines) + "\n")
+        logger.info("Saved %s", gitignore_file)
     else:
         pick_templates()
+
+
+@app.meta.default
+def launcher(
+    *tokens: Annotated[str, Parameter(show=False, allow_leading_hyphen=True)],
+    verbose: Annotated[int, Parameter(alias="-v", count=True)] = 0,
+):
+    """
+    Args:
+        verbose: increase verbosity. Repeatable.
+    """
+    configure_logging(verbosity=verbose)
+    app(tokens)
